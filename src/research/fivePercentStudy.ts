@@ -45,7 +45,7 @@ export function labelTrade(bars: PriceBar[], signalIndex: number, params: StudyP
  * Core trade simulation from a known entry on bars[entryIndex]. The horizon
  * counts the entry session. Returns null if the horizon runs past the data.
  */
-function simulateFrom(
+export function simulateFrom(
     bars: PriceBar[],
     entryIndex: number,
     entry: number,
@@ -240,7 +240,14 @@ export interface OutcomeStats {
     ciNetR: number;
 }
 
-export function summarize(rows: StudyRow[]): OutcomeStats {
+/** The fields the statistics helpers need; StudyRow and other study rows satisfy it. */
+export interface LabelledTrade {
+    symbol: string;
+    index: number;
+    label: TradeLabel;
+}
+
+export function summarize(rows: LabelledTrade[]): OutcomeStats {
     const n = rows.length;
     if (!n) return { n: 0, targetPct: 0, stopPct: 0, expiredPct: 0, avgNetR: 0, ciNetR: 0 };
     let target = 0, stop = 0, sum = 0, sumSquares = 0;
@@ -267,9 +274,9 @@ export function summarize(rows: StudyRow[]): OutcomeStats {
  * for that symbol are skipped until the trade has exited. This is what a
  * trader could actually take, and avoids counting one move many times.
  */
-export function nonOverlapping(rows: StudyRow[]): StudyRow[] {
+export function nonOverlapping<T extends LabelledTrade>(rows: T[]): T[] {
     const sorted = [...rows].sort((left, right) => left.symbol.localeCompare(right.symbol) || left.index - right.index);
-    const kept: StudyRow[] = [];
+    const kept: T[] = [];
     let currentSymbol = '';
     let busyUntil = -1;
     for (const row of sorted) {
