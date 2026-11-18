@@ -37,26 +37,87 @@ export interface TradeLabel {
  * touches both levels counts as a stop, because daily bars hide which came first.
  */
 export function labelTrade(bars: PriceBar[], signalIndex: number, params: StudyParams = DEFAULT_PARAMS): TradeLabel | null {
-    const first = signalIndex + 1;
-    const last = signalIndex + params.horizon;
-    if (signalIndex < 0 || last >= bars.length) return null;
-    const entry = bars[first].open;
-    if (!(entry > 0)) return null;
-    const target = entry * (1 + params.targetPct / 100);
-    const stop = entry * (1 - params.stopPct / 100);
+    if (signalIndex < 0 || signalIndex + 1 >= bars.length) return null;
+    return simulateFrom(bars, signalIndex + 1, bars[signalIndex + 1].open, params.stopPct, params.targetPct, params.horizon, params.costBps);
+}
+
+/**
+ * Core trade simulation from a known entry on bars[entryIndex]. The horizon
+ * counts the entry session. Returns null if the horizon runs past the data.
+ */
+function simulateFrom(
+    bars: PriceBar[],
+    entryIndex: number,
+    entry: number,
+    stopPct: number,
+    targetPct: number,
+    horizon: number,
+    costBps: number,
+): TradeLabel | null {
+    const last = entryIndex + horizon - 1;
+    if (last >= bars.length || !(entry > 0) || !(stopPct > 0)) return null;
+    const target = entry * (1 + targetPct / 100);
+    const stop = entry * (1 - stopPct / 100);
     let outcome: Outcome = 'EXPIRED';
     let exit = bars[last].close;
     let exitIndex = last;
-    for (let index = first; index <= last; index += 1) {
+    for (let index = entryIndex; index <= last; index += 1) {
         const bar = bars[index];
-        if (index > first && bar.open <= stop) { outcome = 'STOP'; exit = bar.open; exitIndex = index; break; }
-        if (index > first && bar.open >= target) { outcome = 'TARGET'; exit = bar.open; exitIndex = index; break; }
+        if (index > entryIndex && bar.open <= stop) { outcome = 'STOP'; exit = bar.open; exitIndex = index; break; }
+        if (index > entryIndex && bar.open >= target) { outcome = 'TARGET'; exit = bar.open; exitIndex = index; break; }
         if (bar.low <= stop) { outcome = 'STOP'; exit = stop; exitIndex = index; break; }
         if (bar.high >= target) { outcome = 'TARGET'; exit = target; exitIndex = index; break; }
     }
     const grossPct = ((exit - entry) / entry) * 100;
-    const netR = (grossPct - params.costBps / 100) / params.stopPct;
-    return { outcome, entry, exit, netR, sessionsHeld: exitIndex - first + 1, exitIndex };
+    const netR = (grossPct - costBps / 100) / stopPct;
+    return { outcome, entry, exit, netR, sessionsHeld: exitIndex - entryIndex + 1, exitIndex };
+}
+
+/** A pre-registered exit design for the volatility-scaled study. */
+export interface ExitDesign {
+    id: string;
+    label: string;
+    entry: 'NEXT_OPEN' | 'BREAKOUT';
+    /** Stop distance as a multiple of the signal-day ATR. */
+    stopAtr: number;
+    /** Target distance as a multiple of the stop distance. */
+    targetR: number;
+    horizon: number;
+    costBps: number;
+}
+
+/** Exactly the four designs in reports/volatility-exit-study-plan.md. Do not edit after results. */
+export const VOLATILITY_DESIGNS: ExitDesign[] = [
+    { id: 'A', label: 'Next open · stop 1.0×ATR · target 2× · 10 sessions', entry: 'NEXT_OPEN', stopAtr: 1.0, targetR: 2, horizon: 10, costBps: 40 },
+    { id: 'B', label: 'Next open · stop 1.5×ATR · target 2× · 15 sessions', entry: 'NEXT_OPEN', stopAtr: 1.5, targetR: 2, horizon: 15, costBps: 40 },
+    { id: 'C', label: 'Next open · stop 1.5×ATR · target 2× · 20 sessions', entry: 'NEXT_OPEN', stopAtr: 1.5, targetR: 2, horizon: 20, costBps: 40 },
+    { id: 'D', label: 'Breakout above signal high · stop 1.5×ATR · target 2× · 15 sessions', entry: 'BREAKOUT', stopAtr: 1.5, targetR: 2, horizon: 15, costBps: 40 },
+];
+
+export const BREAKOUT_TRIGGER_BUFFER = 0.001;
+
+/**
+ * Simulate a design from the close of signalIndex with the stop sized from
+ * that day's ATR (% of close). A breakout design trades only if the next
+ * session goes above the signal day's high; it fills at the trigger, or at
+ * the open when the session gaps above it. Returns null for no trade or
+ * insufficient future data.
+ */
+export function labelDesignTrade(bars: PriceBar[], signalIndex: number, atrPct: number, design: ExitDesign): TradeLabel | null {
+    const entryIndex = signalIndex + 1;
+    if (signalIndex < 0 || entryIndex >= bars.length || !(atrPct > 0)) return null;
+    const next = bars[entryIndex];
+    let entry: number;
+    if (design.entry === 'NEXT_OPEN') {
+        entry = next.open;
+    } else {
+        const trigger = bars[signalIndex].high * (1 + BREAKOUT_TRIGGER_BUFFER);
+        if (next.open >= trigger) entry = next.open;
+        else if (next.high >= trigger) entry = trigger;
+        else return null;
+    }
+    const stopPct = design.stopAtr * atrPct;
+    return simulateFrom(bars, entryIndex, entry, stopPct, stopPct * design.targetR, design.horizon, design.costBps);
 }
 
 export interface StockFeatures {

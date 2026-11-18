@@ -4,7 +4,9 @@ import {
     computeFeatures,
     Condition,
     DEFAULT_PARAMS,
+    ExitDesign,
     greedySelect,
+    labelDesignTrade,
     labelTrade,
     MIN_HISTORY,
     nonOverlapping,
@@ -130,5 +132,40 @@ describe('greedySelect', () => {
 
     it('respects the minimum trade count', () => {
         expect(greedySelect(discovery, [good], 4, 50)).toEqual([]);
+    });
+});
+
+describe('labelDesignTrade', () => {
+    const nextOpen: ExitDesign = { id: 'T', label: 't', entry: 'NEXT_OPEN', stopAtr: 1.5, targetR: 2, horizon: 5, costBps: 0 };
+    const breakout: ExitDesign = { ...nextOpen, entry: 'BREAKOUT' };
+    // Signal bar high is 100, so the breakout trigger is 100.1.
+    const withNext = (next: [number, number, number, number], rest = flat(4)) => series(next, ...rest);
+
+    it('sizes the stop and target from ATR', () => {
+        // ATR 2% → stop 3% (97), target 6% (106).
+        const label = labelDesignTrade(withNext([100, 101, 99, 100], [[100, 106.5, 99, 106], ...flat(3)]), 0, 2, nextOpen)!;
+        expect(label).toMatchObject({ outcome: 'TARGET', entry: 100, exit: 106, netR: 2 });
+        expect(labelDesignTrade(withNext([100, 101, 96.5, 98]), 0, 2, nextOpen)).toMatchObject({ outcome: 'STOP', exit: 97, netR: -1 });
+    });
+
+    it('counts the horizon from the entry session', () => {
+        expect(labelDesignTrade(withNext([100, 101, 99, 100], flat(3)), 0, 2, nextOpen)).toBeNull();
+        expect(labelDesignTrade(withNext([100, 101, 99, 100]), 0, 2, nextOpen)).toMatchObject({ outcome: 'EXPIRED', sessionsHeld: 5, exitIndex: 5 });
+    });
+
+    it('takes no breakout trade when the next session stays below the trigger', () => {
+        expect(labelDesignTrade(withNext([99, 100.05, 98, 99]), 0, 2, breakout)).toBeNull();
+    });
+
+    it('fills a breakout at the trigger price', () => {
+        expect(labelDesignTrade(withNext([99.5, 101, 99.4, 100.8]), 0, 2, breakout)).toMatchObject({ entry: 100.1 });
+    });
+
+    it('fills a gap above the trigger at the open, not the better trigger price', () => {
+        expect(labelDesignTrade(withNext([102, 103, 101.5, 102.5]), 0, 2, breakout)).toMatchObject({ entry: 102 });
+    });
+
+    it('rejects a missing ATR', () => {
+        expect(labelDesignTrade(withNext([100, 101, 99, 100]), 0, 0, nextOpen)).toBeNull();
     });
 });
