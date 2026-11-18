@@ -8,7 +8,7 @@ import { computeIndicators, identifySetupType } from '../indicators';
 import { computeSetupLevels, setupAtr14 } from '../setupLevels';
 import { Candle } from '../types';
 import { nonOverlapping, OutcomeStats, summarize, TradeLabel } from './fivePercentStudy';
-import { decideTrustStatus, EVIDENCE_METHOD_VERSION, EVIDENCE_RULES, replayScannerSignal, TriggerMode, TrustStatus } from './setupEvidence';
+import { decideTrustStatus, EVIDENCE_METHOD_VERSION, EVIDENCE_RULES, EVIDENCE_TRIGGER_MODE, replayScannerSignal, TriggerMode, TrustStatus } from './setupEvidence';
 import { loadUniverse, pct, r, statsCells, TEST_START } from './studyData';
 
 /**
@@ -56,11 +56,11 @@ function argValue(name: string): string | undefined {
 
 async function main(): Promise<void> {
     const generatedAt = new Date();
-    // Sensitivity runs (--trigger=PRICE_ONLY|CLOSE_CONFIRMED_NEXT_OPEN) write a
+    // Sensitivity runs (--trigger=<other mode> or --types=...) write a
     // separate report and never change stored trust status.
-    const mode = (argValue('trigger') ?? 'FULL_DAY_VOLUME') as TriggerMode;
+    const mode = (argValue('trigger') ?? EVIDENCE_TRIGGER_MODE) as TriggerMode;
     const onlyTypes = argValue('types')?.split('|');
-    const isSensitivity = mode !== 'FULL_DAY_VOLUME' || !!onlyTypes;
+    const isSensitivity = mode !== EVIDENCE_TRIGGER_MODE || !!onlyTypes;
     console.log('[Evidence] Loading universe…');
     const universe = await loadUniverse();
     const nifty = (await loadAdjustedDailySeries('NIFTY_50')).bars;

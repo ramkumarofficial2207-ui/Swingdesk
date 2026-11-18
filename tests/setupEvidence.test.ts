@@ -19,12 +19,12 @@ function bars(future: Array<Partial<PriceBar>>): PriceBar[] {
 const levels: SetupLevels = { entryPrice: 101, stopLoss: 98, targetPrice: 107, target2: 110, slPct: 2.97, targetPct: 5.94 };
 const SIGNAL = 20;
 
-describe('replayScannerSignal', () => {
+describe('replayScannerSignal (v1 full-day-volume trigger)', () => {
     it('fills at entry when price reaches it on 1.5× volume, and resolves at the target', () => {
         const result = replayScannerSignal(bars([
             { open: 100, high: 101.5, low: 99.8, close: 101.2, volume: 1600 },
             { open: 101.2, high: 107.5, low: 101, close: 107 },
-        ]), SIGNAL, levels, 2);
+        ]), SIGNAL, levels, 2, 'FULL_DAY_VOLUME');
         expect(result.kind).toBe('TRADE');
         if (result.kind !== 'TRADE') return;
         expect(result.trade).toMatchObject({ fill: 101, fillIndex: 21 });
@@ -36,25 +36,25 @@ describe('replayScannerSignal', () => {
         const result = replayScannerSignal(bars([
             { open: 100, high: 101.5, low: 99.8, close: 101, volume: 1200 },
             { open: 101, high: 101.8, low: 100.5, close: 101.5, volume: 2000 },
-        ]), SIGNAL, levels, 2);
+        ]), SIGNAL, levels, 2, 'FULL_DAY_VOLUME');
         expect(result.kind === 'TRADE' && result.trade.fillIndex).toBe(22);
     });
 
     it('skips a session that opens above the maximum entry (no chasing)', () => {
-        expect(replayScannerSignal(bars([{ open: 102.5, high: 104, low: 102, close: 103, volume: 3000 }]), SIGNAL, levels, 2).kind).toBe('SKIPPED_CHASE');
+        expect(replayScannerSignal(bars([{ open: 102.5, high: 104, low: 102, close: 103, volume: 3000 }]), SIGNAL, levels, 2, 'FULL_DAY_VOLUME').kind).toBe('SKIPPED_CHASE');
     });
 
     it('fills at the open when it gaps above entry but within the cap', () => {
-        const result = replayScannerSignal(bars([{ open: 101.6, high: 102, low: 101.2, close: 101.8, volume: 3000 }]), SIGNAL, levels, 2);
+        const result = replayScannerSignal(bars([{ open: 101.6, high: 102, low: 101.2, close: 101.8, volume: 3000 }]), SIGNAL, levels, 2, 'FULL_DAY_VOLUME');
         expect(result.kind === 'TRADE' && result.trade.fill).toBe(101.6);
     });
 
     it('reports a plan that never triggers within 10 sessions', () => {
-        expect(replayScannerSignal(bars([]), SIGNAL, levels, 2).kind).toBe('NOT_TRIGGERED');
+        expect(replayScannerSignal(bars([]), SIGNAL, levels, 2, 'FULL_DAY_VOLUME').kind).toBe('NOT_TRIGGERED');
     });
 
     it('needs enough future data for the plan window', () => {
-        expect(replayScannerSignal(bars([]).slice(0, 25), SIGNAL, levels, 2).kind).toBe('INSUFFICIENT_DATA');
+        expect(replayScannerSignal(bars([]).slice(0, 25), SIGNAL, levels, 2, 'FULL_DAY_VOLUME').kind).toBe('INSUFFICIENT_DATA');
     });
 });
 
@@ -108,5 +108,13 @@ describe('look-ahead-free trigger modes', () => {
 
     it('CLOSE_CONFIRMED_NEXT_OPEN skips a next open above the maximum entry', () => {
         expect(replayScannerSignal(bars([strongDay, { ...nextDay, open: 102.5 }]), SIGNAL, levels, 2, 'CLOSE_CONFIRMED_NEXT_OPEN').kind).toBe('SKIPPED_CHASE');
+    });
+});
+
+describe('v2 default trigger', () => {
+    it('uses the close-confirmed, next-open trigger by default', () => {
+        const strongDay = { open: 100.2, high: 101.8, low: 100, close: 101.5, volume: 2000 };
+        const result = replayScannerSignal(bars([strongDay, { open: 101.4, high: 102, low: 101, close: 101.8 }]), SIGNAL, levels, 2);
+        expect(result.kind === 'TRADE' && result.trade).toMatchObject({ fill: 101.4, fillIndex: 22 });
     });
 });

@@ -8,7 +8,12 @@ import { calculateMaxBreakoutEntry } from '../executionIntegrity';
 import { SetupLevels } from '../setupLevels';
 import { OutcomeStats, simulateFrom, TradeLabel } from './fivePercentStudy';
 
-export const EVIDENCE_METHOD_VERSION = 'setup-evidence-v1';
+/**
+ * v2 (trust rules v2): trigger is confirmed at the close and filled at the
+ * next open. v1 confirmed volume with the session's final volume, which an
+ * intraday buyer cannot know; that look-ahead created the v1 'On trial' results.
+ */
+export const EVIDENCE_METHOD_VERSION = 'setup-evidence-v2';
 
 export const EVIDENCE_RULES = {
     planSessions: 10,
@@ -42,6 +47,9 @@ export interface ScannerTrade {
  */
 export type TriggerMode = 'FULL_DAY_VOLUME' | 'PRICE_ONLY' | 'CLOSE_CONFIRMED_NEXT_OPEN';
 
+/** Trigger that decides trust status (trust rules v2). */
+export const EVIDENCE_TRIGGER_MODE: TriggerMode = 'CLOSE_CONFIRMED_NEXT_OPEN';
+
 export type ScannerTradeResult =
     | { kind: 'TRADE'; trade: ScannerTrade }
     | { kind: 'NOT_TRIGGERED' | 'SKIPPED_CHASE' | 'INSUFFICIENT_DATA' };
@@ -55,7 +63,7 @@ export type ScannerTradeResult =
  *   skipped (no chasing), as the app would block it;
  * - fill at entry, or at the open if it gapped above entry within the cap.
  */
-export function replayScannerSignal(bars: PriceBar[], signalIndex: number, levels: SetupLevels, atr14: number, mode: TriggerMode = 'FULL_DAY_VOLUME'): ScannerTradeResult {
+export function replayScannerSignal(bars: PriceBar[], signalIndex: number, levels: SetupLevels, atr14: number, mode: TriggerMode = EVIDENCE_TRIGGER_MODE): ScannerTradeResult {
     const { entryPrice, stopLoss, targetPrice } = levels;
     const maxEntry = calculateMaxBreakoutEntry(entryPrice, atr14);
     const lastPlanIndex = signalIndex + EVIDENCE_RULES.planSessions;

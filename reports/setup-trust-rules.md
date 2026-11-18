@@ -36,3 +36,26 @@ Discovery 2021–2023, test 2024 onward, as in the earlier studies. Status is de
 | 🟢 **Trusted** | On trial **and** at least 30 live paper trades recorded *after* it became On trial, with average net R > 0. Only Trusted setups are candidates for real money. |
 
 A Trusted or On-trial setup is demoted to Research only if a later evidence run fails the On-trial rule, or if its live record over the most recent 30 trades has average net R ≤ 0.
+
+---
+
+## Version 2 (2026-11-19): trigger corrected for look-ahead
+
+**What changed:** only the trigger row. Everything else above is unchanged.
+
+| Rule | v1 | v2 |
+|---|---|---|
+| Trigger | Session high reaches entry and the **session's total volume** is ≥ 1.5× the prior 20-session average; fill the same session | Session **closes** above entry on ≥ 1.5× volume; **buy at the next session's open** (skipped if that open is above the maximum entry) |
+
+**Why:** v1 used the session's final volume to decide whether a trade happened *during* that session. An intraday buyer cannot know the final volume, and days that finish on heavy volume tend to close strong, so v1 selected winners with information from the future. A sensitivity check on the four v1 "On trial" types showed their results disappear without it:
+
+| Setup type | v1 (look-ahead) | Price only | Close-confirmed, next open |
+|---|---:|---:|---:|
+| Bull Flag Breakout | +0.17R | −0.12R | −0.06R |
+| High Tight Flag | +0.09R | −0.17R | −0.03R |
+| Momentum Continuation | +0.08R | −0.07R | −0.11R |
+| Second-Entry Retest | +0.07R | −0.07R | −0.13R |
+
+The close-confirmed trigger is also how an evening trader actually works: review after the close, place the order for the next open.
+
+**Caution:** v2 is a second look at the 2024+ test period. Any setup type that passes v2 must be treated as weaker evidence than a first look and relies more heavily on its live paper record. v1 results remain stored under method `setup-evidence-v1` and in `setup-evidence-v1.md`; the app shows v2 only.
