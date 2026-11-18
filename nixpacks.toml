@@ -1,0 +1,12 @@
+[providers.node]
+nodeVersion = "20"
+
+[phases.build]
+cmds = ["npm ci --include=dev", "npx prisma generate", "tsc", "npm --prefix apex-intelligence ci", "npm --prefix apex-intelligence run build"]
+
+[phases.setup]
+cmds = []
+
+[environment]
+NIXPACKS_PRISMA_NO_GENERATE = "1"
+NIXPACKS_PRISMA_NO_MIGRATE = "1"

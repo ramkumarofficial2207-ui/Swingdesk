@@ -1,0 +1,7 @@
+# Normalize line endings in the repository; Windows checkouts get CRLF as configured.
+* text=auto
+*.sh text eol=lf
+*.png binary
+*.jpg binary
+*.db binary
+*.zip binary

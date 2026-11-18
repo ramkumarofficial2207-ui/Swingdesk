@@ -1,0 +1,99 @@
+{
+  "pipelineVersion": "apex-two-stage-v1",
+  "dataset": {
+    "samples": 6900,
+    "dates": 230,
+    "triggeredSamples": 2423,
+    "triggeredDates": 230,
+    "holdoutStart": "2025-01-13",
+    "holdoutEnd": "2026-03-10"
+  },
+  "walkForward": {
+    "trigger": {
+      "brier": 0.21112538319980162,
+      "baselineBrier": 0.22602497398543175,
+      "rocAuc": 0.6535687429983272,
+      "prAuc": 0.48430722395978154,
+      "precisionAt5": 0.5483870967741935,
+      "expectedCalibrationError": 0.038499163046485214,
+      "triggerRate": 0.34516129032258064,
+      "samples": 1860
+    },
+    "conditionalRankers": {
+      "lightgbm_conditional_win_ranker": {
+        "precisionAt5": 0.47781959378733574,
+        "ndcgAt5": 0.531709438783554,
+        "expectancyR": 0.31088228853046596,
+        "maxDrawdownR": 10.404499999999995,
+        "trades": 149.66666666666666
+      },
+      "catboost_conditional_yetirank": {
+        "precisionAt5": 0.4816278375149343,
+        "ndcgAt5": 0.5337515250774646,
+        "expectancyR": 0.30719202986857824,
+        "maxDrawdownR": 11.175899999999993,
+        "trades": 149.66666666666666
+      },
+      "xgboost_conditional_ranker": {
+        "precisionAt5": 0.48911589008363204,
+        "ndcgAt5": 0.5502719208195711,
+        "expectancyR": 0.3312707992831541,
+        "maxDrawdownR": 12.949266666666666,
+        "trades": 149.66666666666666
+      }
+    },
+    "combined": {
+      "winPrecisionAt5": 0.14838709677419354,
+      "triggerPrecisionAt5": 0.33225806451612905,
+      "expectancyR": 0.12352677419354839,
+      "maxDrawdownR": 7.5503,
+      "trades": 310
+    }
+  },
+  "untouchedHoldout": {
+    "trigger": {
+      "brier": 0.21067673821997704,
+      "baselineBrier": 0.2270631169922285,
+      "rocAuc": 0.6684095749724227,
+      "prAuc": 0.4941184235877252,
+      "precisionAt5": 0.5521739130434783,
+      "expectedCalibrationError": 0.039055316882362516,
+      "triggerRate": 0.34855072463768116,
+      "samples": 1380
+    },
+    "conditionalRankers": {
+      "lightgbm_conditional_win_ranker": {
+        "precisionAt5": 0.45089285714285715,
+        "ndcgAt5": 0.5434218651171865,
+        "expectancyR": 0.17699419642857142,
+        "maxDrawdownR": 17.9124,
+        "trades": 224
+      },
+      "catboost_conditional_yetirank": {
+        "precisionAt5": 0.42857142857142855,
+        "ndcgAt5": 0.5290597411251887,
+        "expectancyR": 0.12299062499999999,
+        "maxDrawdownR": 15.827500000000006,
+        "trades": 224
+      },
+      "xgboost_conditional_ranker": {
+        "precisionAt5": 0.4642857142857143,
+        "ndcgAt5": 0.5416449496177433,
+        "expectancyR": 0.21196473214285713,
+        "maxDrawdownR": 15.7315,
+        "trades": 224
+      }
+    },
+    "combined": {
+      "winPrecisionAt5": 0.10869565217391304,
+      "triggerPrecisionAt5": 0.2826086956521739,
+      "expectancyR": 0.040473043478260876,
+      "maxDrawdownR": 7.109400000000001,
+      "trades": 230
+    }
+  },
+  "eligible": false,
+  "reasons": [
+    "conditional champion Precision@5 below 55%"
+  ]
+}

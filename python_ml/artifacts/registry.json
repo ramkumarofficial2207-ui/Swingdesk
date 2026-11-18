@@ -1,0 +1,203 @@
+{
+  "pipelineVersion": "apex-two-stage-v1",
+  "featureSchemaVersion": "apex-ranking-v1",
+  "datasetHash": "8f85c1df7cd392b50c4b77fb87a07b42804a0c6cdaaa462cf64042d58ee39ff6",
+  "categoryMaps": {
+    "sector": {
+      "Automobile and Auto Components": 0,
+      "Capital Goods": 1,
+      "Chemicals": 2,
+      "Construction": 3,
+      "Construction Materials": 4,
+      "Consumer Durables": 5,
+      "Consumer Services": 6,
+      "Diversified": 7,
+      "Fast Moving Consumer Goods": 8,
+      "Financial Services": 9,
+      "Forest Materials": 10,
+      "Healthcare": 11,
+      "Information Technology": 12,
+      "Media Entertainment & Publication": 13,
+      "Metals & Mining": 14,
+      "Oil Gas & Consumable Fuels": 15,
+      "Power": 16,
+      "Realty": 17,
+      "Services": 18,
+      "Telecommunication": 19,
+      "Textiles": 20,
+      "UNKNOWN": 21,
+      "Utilities": 22
+    },
+    "setupType": {
+      "Breakout Base": 0,
+      "Bull Flag Breakout \ud83d\udea9": 1,
+      "Compression Breakout": 2,
+      "Compression in Leaders": 3,
+      "Deep Value Reversion \ud83d\udcc9": 4,
+      "EMA20 Pullback": 5,
+      "EMA50 Pullback": 6,
+      "Earnings Reaction Continuation": 7,
+      "Episodic Pivot (EP) Gap-Up \ud83d\ude80": 8,
+      "High Tight Flag (HTF) \ud83d\udea9": 9,
+      "Ichimoku Cloud Breakout": 10,
+      "Leader Pullback Reclaim": 11,
+      "Momentum Continuation": 12,
+      "Pre-Surge Hybrid Base \ud83c\udf31": 13,
+      "Pullback Continuation": 14,
+      "Second-Entry Retest": 15,
+      "Squeeze Breakout": 16,
+      "VCP Breakout \ud83d\udd25": 17,
+      "VCP Contraction": 18
+    },
+    "setupFamily": {
+      "BREAKOUT": 0,
+      "COMPRESSION": 1,
+      "CONTINUATION": 2,
+      "EVENT_DRIVEN": 3,
+      "LEADER": 4,
+      "PRE_SURGE": 5,
+      "PULLBACK": 6,
+      "REVERSAL": 7
+    },
+    "marketRegime": {
+      "BULLISH": 0,
+      "NEUTRAL": 1
+    },
+    "discoverySource": {
+      "LIQUIDITY": 0
+    }
+  },
+  "trainingWindow": {
+    "start": "2021-01-01",
+    "end": "2026-03-10"
+  },
+  "promotion": {
+    "eligible": false,
+    "reasons": [
+      "conditional champion Precision@5 below 55%"
+    ]
+  },
+  "models": [
+    {
+      "name": "lightgbm_trigger_classifier",
+      "version": "20260809T173433Z",
+      "stage": "TRIGGER",
+      "role": "TRIGGER",
+      "status": "SHADOW",
+      "artifact": "lightgbm_trigger_classifier.txt",
+      "artifactSha256": "404236ca3f8b535ad69f1c335b29f30b262eae9be26e0788acdc64e11ef5cfaa",
+      "calibratorArtifact": "trigger_calibrator.joblib",
+      "calibratorSha256": "ced23f9b2cb4110198ebdacb9772833d91e64d34d4e38da7854f42edbbcf226e",
+      "productionEligible": false,
+      "metrics": {
+        "walkForward": {
+          "brier": 0.21112538319980162,
+          "baselineBrier": 0.22602497398543175,
+          "rocAuc": 0.6535687429983272,
+          "prAuc": 0.48430722395978154,
+          "precisionAt5": 0.5483870967741935,
+          "expectedCalibrationError": 0.038499163046485214,
+          "triggerRate": 0.34516129032258064,
+          "samples": 1860
+        },
+        "holdout": {
+          "brier": 0.21067673821997704,
+          "baselineBrier": 0.2270631169922285,
+          "rocAuc": 0.6684095749724227,
+          "prAuc": 0.4941184235877252,
+          "precisionAt5": 0.5521739130434783,
+          "expectedCalibrationError": 0.039055316882362516,
+          "triggerRate": 0.34855072463768116,
+          "samples": 1380
+        }
+      }
+    },
+    {
+      "name": "lightgbm_conditional_win_ranker",
+      "version": "20260809T173433Z",
+      "stage": "CONDITIONAL_WIN",
+      "role": "CHAMPION",
+      "status": "SHADOW",
+      "artifact": "lightgbm_conditional_win_ranker.txt",
+      "artifactSha256": "6ca04ca512d62b239ac2db4eb41bbdb8860105a8f4f020519dc8dd1660efea23",
+      "calibratorArtifact": "conditional_win_calibrator.joblib",
+      "calibratorSha256": "87bcb57e58fa85d8f62e575ccd9c1a00e2143f53b49edadf3fae0f439d3741cc",
+      "productionEligible": false,
+      "metrics": {
+        "walkForward": {
+          "precisionAt5": 0.47781959378733574,
+          "ndcgAt5": 0.531709438783554,
+          "expectancyR": 0.31088228853046596,
+          "maxDrawdownR": 10.404499999999995,
+          "trades": 149.66666666666666
+        },
+        "holdout": {
+          "precisionAt5": 0.45089285714285715,
+          "ndcgAt5": 0.5434218651171865,
+          "expectancyR": 0.17699419642857142,
+          "maxDrawdownR": 17.9124,
+          "trades": 224
+        },
+        "combinedHoldout": {
+          "winPrecisionAt5": 0.10869565217391304,
+          "triggerPrecisionAt5": 0.2826086956521739,
+          "expectancyR": 0.040473043478260876,
+          "maxDrawdownR": 7.109400000000001,
+          "trades": 230
+        }
+      }
+    },
+    {
+      "name": "catboost_conditional_yetirank",
+      "version": "20260809T173433Z",
+      "stage": "CONDITIONAL_WIN",
+      "role": "CHALLENGER",
+      "status": "SHADOW",
+      "artifact": "catboost_conditional_yetirank.cbm",
+      "artifactSha256": "3e91eb8678365443a46487e597d05a9cf833b08f83845b84edaa5390522980da",
+      "productionEligible": false,
+      "metrics": {
+        "walkForward": {
+          "precisionAt5": 0.4816278375149343,
+          "ndcgAt5": 0.5337515250774646,
+          "expectancyR": 0.30719202986857824,
+          "maxDrawdownR": 11.175899999999993,
+          "trades": 149.66666666666666
+        },
+        "holdout": {
+          "precisionAt5": 0.42857142857142855,
+          "ndcgAt5": 0.5290597411251887,
+          "expectancyR": 0.12299062499999999,
+          "maxDrawdownR": 15.827500000000006,
+          "trades": 224
+        }
+      }
+    },
+    {
+      "name": "xgboost_conditional_ranker",
+      "version": "20260809T173433Z",
+      "stage": "CONDITIONAL_WIN",
+      "role": "BASELINE",
+      "status": "SHADOW",
+      "artifact": "xgboost_conditional_ranker.json",
+      "artifactSha256": "bba45b5609a53dcdb59e848bea6f32f643658b10418988cbb17f998618f73a2c",
+      "productionEligible": false,
+      "metrics": {
+        "walkForward": {
+          "precisionAt5": 0.48911589008363204,
+          "ndcgAt5": 0.5502719208195711,
+          "expectancyR": 0.3312707992831541,
+          "maxDrawdownR": 12.949266666666666,
+          "trades": 149.66666666666666
+        },
+        "holdout": {
+          "precisionAt5": 0.4642857142857143,
+          "ndcgAt5": 0.5416449496177433,
+          "expectancyR": 0.21196473214285713,
+          "maxDrawdownR": 15.7315,
+          "trades": 224
+        }
+      }
+    }
+  ]
+}
