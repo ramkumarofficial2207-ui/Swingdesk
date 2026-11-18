@@ -56,7 +56,7 @@
         "lowdb": "^1.0.0",
         "node-cron": "^4.6.0",
         "node-telegram-bot-api": "^1.2.0",
-        "nodemailer": "^9.0.3",
+        "nodemailer": "^10.1.4",
         "prisma": "^5.22.0",
         "puppeteer-core": "^25.4.0",
         "technicalindicators": "^3.1.0",
