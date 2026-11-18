@@ -34,7 +34,7 @@
         "backtest:universe": "cross-env BACKTEST_UNIVERSE_MODE=broad_india BACKTEST_UNIVERSE_ONLY=1 ts-node --transpile-only backtest.ts"
     },
     "dependencies": {
-        "@anthropic-ai/sdk": "^0.78.0",
+        "@anthropic-ai/sdk": "^1.8.0",
         "@google/generative-ai": "^0.24.1",
         "@prisma/client": "^5.22.0",
         "@tensorflow/tfjs": "^4.22.0",
