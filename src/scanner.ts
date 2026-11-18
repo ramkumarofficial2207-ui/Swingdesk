@@ -1573,9 +1573,10 @@ export async function buildTradeSetups(
             setupCategory: horizon.category,
             thesisHorizonDays: horizon.horizonDays,
             timeframe,
-            earningsRisk: earnings.blocked,
+            // Unknown results dates are flagged, never treated as safe.
+            earningsRisk: earnings.blocked || !earnings.checked,
             newsRisk: news.blocked,
-            newsSummary: earnings.blocked ? earnings.reason : news.reason,
+            newsSummary: !earnings.checked ? earnings.reason : news.reason,
             headlines: news.headlines,
             momentumRank: index + 1,
             volatilityHitProb: hitProb,
