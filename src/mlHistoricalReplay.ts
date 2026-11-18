@@ -2,6 +2,7 @@ import 'dotenv/config';
 import { createHash } from 'crypto';
 import { Prisma } from '@prisma/client';
 import prisma from './prismaClient';
+import { computeSetupLevels } from './setupLevels';
 import { SECTOR_MAP } from './dataService';
 import {
     computeAtr14,
@@ -95,10 +96,6 @@ function dateKey(value: Date | string): string {
 
 function utcDate(value: string): Date {
     return new Date(`${value}T00:00:00.000Z`);
-}
-
-function roundToNseTick(price: number): number {
-    return +(Math.round(price / 0.05) * 0.05).toFixed(2);
 }
 
 export function deterministicUuid(value: string): string {
@@ -302,47 +299,10 @@ function buildReplaySetup(
     const previousClose = ind.candles[ind.candles.length - 2]?.close ?? lastCandle.close;
     const atr14 = computeAtr14(ind.candles);
     if (!Number.isFinite(atr14) || atr14 <= 0) return null;
-    const recentHigh5 = Math.max(...ind.candles.slice(-5).map(candle => candle.high));
-    const recentHigh10 = Math.max(...ind.candles.slice(-10).map(candle => candle.high));
-    const recentHigh20 = Math.max(...ind.candles.slice(-20).map(candle => candle.high));
-    const recentLow5 = Math.min(...ind.candles.slice(-5).map(candle => candle.low));
-    const recentLow8 = Math.min(...ind.candles.slice(-8).map(candle => candle.low));
-    const recentLow12 = Math.min(...ind.candles.slice(-12).map(candle => candle.low));
-
-    let rawEntryPrice = lastCandle.high * 1.001;
-    if (setupType.includes('Pre-Surge')) rawEntryPrice = Math.max(lastCandle.high, recentHigh5) * 1.001;
-    else if (setupType === 'Leader Pullback Reclaim') rawEntryPrice = Math.max(lastCandle.high, ind.ema20, recentHigh10) * 1.001;
-    else if (setupType === 'Second-Entry Retest') rawEntryPrice = Math.max(lastCandle.high, recentHigh20) * 1.0012;
-    else if (setupType === 'Earnings Reaction Continuation') rawEntryPrice = Math.max(lastCandle.high, recentHigh10, ind.ema20) * 1.001;
-    else if (setupType === 'Compression in Leaders') rawEntryPrice = Math.max(lastCandle.high, recentHigh5) * 1.0015;
-    const entryPrice = roundToNseTick(rawEntryPrice);
-
-    let rawStopLoss: number;
-    if (setupType.includes('Pre-Surge')) rawStopLoss = Math.min(recentLow8, ind.ema20 * 0.985, entryPrice - 1.5 * atr14);
-    else if (ind.isDeepValue) rawStopLoss = Math.min(...ind.candles.slice(-15).map(candle => candle.low)) * 0.99;
-    else if (setupType === 'Leader Pullback Reclaim') rawStopLoss = Math.min(recentLow8, ind.ema20 * 0.993, entryPrice - 1.3 * atr14);
-    else if (setupType === 'Second-Entry Retest') rawStopLoss = Math.min(recentLow12, ind.ema20 * 0.992, entryPrice - 1.5 * atr14);
-    else if (setupType === 'Earnings Reaction Continuation') rawStopLoss = Math.min(recentLow5, previousClose * 0.995, entryPrice - 1.4 * atr14);
-    else if (setupType === 'Compression in Leaders') rawStopLoss = Math.min(recentLow5, ind.ema20 * 0.994, entryPrice - 1.25 * atr14);
-    else if (setupType.includes('VCP') || ind.isBullFlag || setupType === 'Squeeze Breakout' || setupType === 'Compression Breakout') rawStopLoss = recentLow5 * 0.993;
-    else if (setupType.includes('Pullback')) rawStopLoss = recentLow8 * 0.994;
-    else rawStopLoss = Math.min(ind.ema20 * 0.99, entryPrice - 1.5 * atr14);
-    if (entryPrice - rawStopLoss > 2.5 * atr14) rawStopLoss = entryPrice - 2.5 * atr14;
-    if (rawStopLoss >= entryPrice) rawStopLoss = entryPrice - atr14;
-    const stopLoss = roundToNseTick(rawStopLoss);
-    if (stopLoss <= 0 || stopLoss >= entryPrice) return null;
-
-    const targetAtrMultiplier = setupType.includes('Pre-Surge') ? 4
-        : setupType === 'Leader Pullback Reclaim' ? 2.8
-            : setupType === 'Second-Entry Retest' ? 3.1
-                : setupType === 'Earnings Reaction Continuation' ? 3.4
-                    : setupType === 'Compression in Leaders' ? 3.2
-                        : ind.isDeepValue ? 2.6 : 3;
-    let targetPrice = roundToNseTick(entryPrice + targetAtrMultiplier * atr14);
-    if (ind.isDeepValue && ind.ema50 > entryPrice + 2 * atr14) targetPrice = roundToNseTick(ind.ema50);
-    const target2 = roundToNseTick(targetPrice + 1.5 * atr14);
-    const targetPct = +(((targetPrice - entryPrice) / entryPrice) * 100).toFixed(2);
-    const slPct = +(((entryPrice - stopLoss) / entryPrice) * 100).toFixed(2);
+    // Same levels as the live scanner (src/setupLevels.ts).
+    const levels = computeSetupLevels(setupType, ind, atr14);
+    if (!levels) return null;
+    const { entryPrice, stopLoss, targetPrice, target2, targetPct, slPct } = levels;
     const averageTurnover = (ind.avgVolume20d * ind.ltp) / 10_000_000;
     const estimatedMarketCap = Math.max(250, averageTurnover * 50);
     const slippagePct = estimateSlippagePct(estimatedMarketCap, ind.volumeRatio, 'Swing');
