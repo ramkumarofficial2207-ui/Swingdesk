@@ -31,6 +31,17 @@ export interface ScannerTrade {
     reachedGoalFirst: boolean;
 }
 
+/**
+ * How the trigger is confirmed:
+ * - FULL_DAY_VOLUME (pre-registered default): the session's high reaches entry
+ *   and the session's total volume is >= 1.5x. Uses the day's final volume,
+ *   which an intraday buyer does not yet know: optimistic.
+ * - PRICE_ONLY: buy when price reaches entry, no volume check. No look-ahead.
+ * - CLOSE_CONFIRMED_NEXT_OPEN: the session closes above entry on >= 1.5x
+ *   volume; buy at the next session's open. Known at the close. No look-ahead.
+ */
+export type TriggerMode = 'FULL_DAY_VOLUME' | 'PRICE_ONLY' | 'CLOSE_CONFIRMED_NEXT_OPEN';
+
 export type ScannerTradeResult =
     | { kind: 'TRADE'; trade: ScannerTrade }
     | { kind: 'NOT_TRIGGERED' | 'SKIPPED_CHASE' | 'INSUFFICIENT_DATA' };
@@ -44,7 +55,7 @@ export type ScannerTradeResult =
  *   skipped (no chasing), as the app would block it;
  * - fill at entry, or at the open if it gapped above entry within the cap.
  */
-export function replayScannerSignal(bars: PriceBar[], signalIndex: number, levels: SetupLevels, atr14: number): ScannerTradeResult {
+export function replayScannerSignal(bars: PriceBar[], signalIndex: number, levels: SetupLevels, atr14: number, mode: TriggerMode = 'FULL_DAY_VOLUME'): ScannerTradeResult {
     const { entryPrice, stopLoss, targetPrice } = levels;
     const maxEntry = calculateMaxBreakoutEntry(entryPrice, atr14);
     const lastPlanIndex = signalIndex + EVIDENCE_RULES.planSessions;
@@ -55,15 +66,24 @@ export function replayScannerSignal(bars: PriceBar[], signalIndex: number, level
         if (bar.open > maxEntry) return { kind: 'SKIPPED_CHASE' };
         const prior = bars.slice(Math.max(0, index - 20), index);
         const averageVolume = prior.reduce((sum, item) => sum + item.volume, 0) / Math.max(prior.length, 1);
-        if (!(averageVolume > 0) || bar.volume < EVIDENCE_RULES.triggerVolumeRatio * averageVolume) continue;
-        const fill = Math.max(entryPrice, bar.open);
+        const volumeConfirmed = averageVolume > 0 && bar.volume >= EVIDENCE_RULES.triggerVolumeRatio * averageVolume;
+        let fillIndex = index;
+        let fill = Math.max(entryPrice, bar.open);
+        if (mode === 'FULL_DAY_VOLUME' && !volumeConfirmed) continue;
+        if (mode === 'CLOSE_CONFIRMED_NEXT_OPEN') {
+            if (!volumeConfirmed || bar.close < entryPrice) continue;
+            fillIndex = index + 1;
+            if (fillIndex >= bars.length) return { kind: 'INSUFFICIENT_DATA' };
+            fill = bars[fillIndex].open;
+            if (fill > maxEntry) return { kind: 'SKIPPED_CHASE' };
+        }
         if (!(fill > stopLoss) || !(targetPrice > fill)) return { kind: 'SKIPPED_CHASE' };
         const stopPct = ((fill - stopLoss) / fill) * 100;
         const targetPct = ((targetPrice - fill) / fill) * 100;
-        const label = simulateFrom(bars, index, fill, stopPct, targetPct, EVIDENCE_RULES.holdSessions, EVIDENCE_RULES.costBps);
-        const goal = simulateFrom(bars, index, fill, stopPct, EVIDENCE_RULES.goalPct, EVIDENCE_RULES.holdSessions, EVIDENCE_RULES.costBps);
+        const label = simulateFrom(bars, fillIndex, fill, stopPct, targetPct, EVIDENCE_RULES.holdSessions, EVIDENCE_RULES.costBps);
+        const goal = simulateFrom(bars, fillIndex, fill, stopPct, EVIDENCE_RULES.goalPct, EVIDENCE_RULES.holdSessions, EVIDENCE_RULES.costBps);
         if (!label || !goal) return { kind: 'INSUFFICIENT_DATA' };
-        return { kind: 'TRADE', trade: { label, fillIndex: index, fill, reachedGoalFirst: goal.outcome === 'TARGET' } };
+        return { kind: 'TRADE', trade: { label, fillIndex, fill, reachedGoalFirst: goal.outcome === 'TARGET' } };
     }
     return { kind: 'NOT_TRIGGERED' };
 }

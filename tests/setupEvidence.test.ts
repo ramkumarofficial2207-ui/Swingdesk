@@ -88,3 +88,25 @@ describe('decideTrustStatus', () => {
         expect(decideTrustStatus({ ...passing, liveTrades: { n: 30, avgNetR: 0.2 } }).status).toBe('TRUSTED');
     });
 });
+
+describe('look-ahead-free trigger modes', () => {
+    // Crosses entry intraday on low volume, closes below entry.
+    const weakDay = { open: 100, high: 101.5, low: 99.8, close: 100.5, volume: 1000 };
+    // Crosses entry, closes above it on 2x volume; next session opens at 101.4.
+    const strongDay = { open: 100.2, high: 101.8, low: 100, close: 101.5, volume: 2000 };
+    const nextDay = { open: 101.4, high: 102, low: 101, close: 101.8 };
+
+    it('PRICE_ONLY buys when price crosses entry, without knowing the day volume', () => {
+        const result = replayScannerSignal(bars([weakDay]), SIGNAL, levels, 2, 'PRICE_ONLY');
+        expect(result.kind === 'TRADE' && result.trade).toMatchObject({ fill: 101, fillIndex: 21 });
+    });
+
+    it('CLOSE_CONFIRMED_NEXT_OPEN waits for a confirmed close and buys the next open', () => {
+        const result = replayScannerSignal(bars([weakDay, strongDay, nextDay]), SIGNAL, levels, 2, 'CLOSE_CONFIRMED_NEXT_OPEN');
+        expect(result.kind === 'TRADE' && result.trade).toMatchObject({ fill: 101.4, fillIndex: 23 });
+    });
+
+    it('CLOSE_CONFIRMED_NEXT_OPEN skips a next open above the maximum entry', () => {
+        expect(replayScannerSignal(bars([strongDay, { ...nextDay, open: 102.5 }]), SIGNAL, levels, 2, 'CLOSE_CONFIRMED_NEXT_OPEN').kind).toBe('SKIPPED_CHASE');
+    });
+});

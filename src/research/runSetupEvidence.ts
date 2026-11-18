@@ -8,7 +8,7 @@ import { computeIndicators, identifySetupType } from '../indicators';
 import { computeSetupLevels, setupAtr14 } from '../setupLevels';
 import { Candle } from '../types';
 import { nonOverlapping, OutcomeStats, summarize, TradeLabel } from './fivePercentStudy';
-import { decideTrustStatus, EVIDENCE_METHOD_VERSION, EVIDENCE_RULES, replayScannerSignal, TrustStatus } from './setupEvidence';
+import { decideTrustStatus, EVIDENCE_METHOD_VERSION, EVIDENCE_RULES, replayScannerSignal, TriggerMode, TrustStatus } from './setupEvidence';
 import { loadUniverse, pct, r, statsCells, TEST_START } from './studyData';
 
 /**
@@ -49,8 +49,18 @@ const STATUS_LABEL: Record<TrustStatus, string> = {
     RESEARCH_ONLY: '⚪ Research only',
 };
 
+function argValue(name: string): string | undefined {
+    const prefix = `--${name}=`;
+    return process.argv.find(arg => arg.startsWith(prefix))?.slice(prefix.length);
+}
+
 async function main(): Promise<void> {
     const generatedAt = new Date();
+    // Sensitivity runs (--trigger=PRICE_ONLY|CLOSE_CONFIRMED_NEXT_OPEN) write a
+    // separate report and never change stored trust status.
+    const mode = (argValue('trigger') ?? 'FULL_DAY_VOLUME') as TriggerMode;
+    const onlyTypes = argValue('types')?.split('|');
+    const isSensitivity = mode !== 'FULL_DAY_VOLUME' || !!onlyTypes;
     console.log('[Evidence] Loading universe…');
     const universe = await loadUniverse();
     const nifty = (await loadAdjustedDailySeries('NIFTY_50')).bars;
@@ -72,10 +82,11 @@ async function main(): Promise<void> {
             );
             if (!ind) continue;
             const setupType = identifySetupType(ind);
+            if (onlyTypes && !onlyTypes.includes(setupType)) continue;
             const atr14 = setupAtr14(ind.candles);
             const levels = computeSetupLevels(setupType, ind, atr14);
             if (!levels) continue;
-            const result = replayScannerSignal(bars, i, levels, atr14);
+            const result = replayScannerSignal(bars, i, levels, atr14, mode);
             if (result.kind === 'INSUFFICIENT_DATA') continue;
             const counts = byType.get(setupType) ?? { signals: 0, triggered: 0, skippedChase: 0, notTriggered: 0, trades: [] };
             counts.signals += 1;
@@ -121,7 +132,7 @@ async function main(): Promise<void> {
     }
     results.sort((left, right) => right.test.avgNetR - left.test.avgNetR);
 
-    for (const result of results) {
+    for (const result of isSensitivity ? [] : results) {
         const data = {
             status: result.status,
             reasons: result.reasons as unknown as Prisma.InputJsonValue,
@@ -146,9 +157,9 @@ async function main(): Promise<void> {
 
     const header = 'Trades | Target first | Stop first | Expired | Avg net R (95% range)';
     const lines = [
-        '# Setup evidence',
+        isSensitivity ? `# Setup evidence: sensitivity (${mode})` : '# Setup evidence',
         '',
-        `Generated: ${generatedAt.toISOString()} · method \`${EVIDENCE_METHOD_VERSION}\``,
+        `Generated: ${generatedAt.toISOString()} · method \`${EVIDENCE_METHOD_VERSION}\` · trigger \`${mode}\`${isSensitivity ? ' · sensitivity run, stored status unchanged' : ''}`,
         '',
         'Every scanner setup type, replayed with the **same entry, stop and target the app shows** and the app\'s execution rules. Status follows the pre-registered [trust rules](setup-trust-rules.md); only the 2024+ test period decides it.',
         '',
@@ -182,7 +193,7 @@ async function main(): Promise<void> {
         '',
     ];
     mkdirSync('reports', { recursive: true });
-    const path = join('reports', 'setup-evidence.md');
+    const path = join('reports', isSensitivity ? `setup-evidence-${mode.toLowerCase().replace(/_/g, '-')}.md` : 'setup-evidence.md');
     writeFileSync(path, lines.join('\n'));
     console.log(`[Evidence] ${results.length} setup types; ${results.filter(item => item.status !== 'RESEARCH_ONLY').length} not research-only. Report: ${path}`);
 }
