@@ -34,3 +34,14 @@ The browser script needs the local frontend running and Microsoft Edge installed
 On 17 November 2026 the existing local database was missing `TradePlan`, `TradeAttempt`, and `SetupLifecycleEvent`. The reviewed additive difference is recorded in `reports/swingdesk-schema-diff.sql`; `prisma db push --skip-generate` added only those tables, their indexes, and foreign keys. Existing records were preserved. The older database's migration history is not baselined; do not run the entire migration chain against it without separately reconciling that history.
 
 The previous App source is saved at `scratch/swingdesk-backup/App.tsx`. Existing strategy modules and legacy page files remain available. Strategy validation, model quality, and live execution are separate from this interface rebuild.
+
+## Split and bonus adjustment
+
+NSE daily files are raw, so a 1:1 bonus appears as a 50% one-day fall. Raw `DailyCandle` rows are never modified. Split, bonus and consolidation events are stored in `CorporateAction` and applied on read by `loadAdjustedDailySeries()` in `src/adjustedCandles.ts`; research and backtest code should use it instead of querying candles directly.
+
+```sh
+npm run data:corporate-actions               # fetch events for symbols with >25% one-day jumps, write reports/data-quality.md
+npm run data:corporate-actions -- --report-only
+```
+
+Jumps that remain unexplained are listed in `reports/data-quality.md`. Many are genuine moves (March 2020, single-stock crashes); others are demergers or combined split + bonus actions. Do not drop them blindly. Add a `MANUAL` `CorporateAction` row only for a confirmed event; a manual row overrides the provider row for the same date.

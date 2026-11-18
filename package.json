@@ -24,6 +24,7 @@
         "ml:sync-registry": "ts-node --transpile-only src/mlModelRegistrySync.ts",
         "execution:audit": "ts-node --transpile-only src/executionAudit.ts",
         "report:setups": "ts-node --transpile-only src/setupValidationReport.ts",
+        "data:corporate-actions": "ts-node --transpile-only src/corporateActionSync.ts",
         "universe:refresh": "node scripts/refresh-nifty500.cjs",
         "backtest:presurge-v2:signals": "ts-node --transpile-only src/preSurgeV2Replay.ts",
         "backtest:presurge-v2:download": "ts-node --transpile-only src/dhanPreSurgeIntradayBackfill.ts",
