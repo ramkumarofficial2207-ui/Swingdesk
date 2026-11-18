@@ -28,6 +28,7 @@
         "research:five-pct": "node --max-old-space-size=4096 -r ts-node/register/transpile-only src/research/runFivePercentStudy.ts",
         "research:volatility-exits": "node --max-old-space-size=6144 -r ts-node/register/transpile-only src/research/runVolatilityExitStudy.ts",
         "research:setup-evidence": "node --max-old-space-size=6144 -r ts-node/register/transpile-only src/research/runSetupEvidence.ts",
+        "paper:track": "ts-node --transpile-only src/paperTrackerCli.ts",
         "universe:refresh": "node scripts/refresh-nifty500.cjs",
         "backtest:presurge-v2:signals": "ts-node --transpile-only src/preSurgeV2Replay.ts",
         "backtest:presurge-v2:download": "ts-node --transpile-only src/dhanPreSurgeIntradayBackfill.ts",

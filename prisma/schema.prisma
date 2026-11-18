@@ -446,6 +446,36 @@ model SetupEvidence {
   @@index([status])
 }
 
+/// Live paper tracking of On-trial / Trusted setups (reports/setup-trust-rules.md).
+/// Resolved with the same rules as the historical replay; no orders are placed.
+model PaperSignal {
+  id               String    @id @default(uuid()) @db.Uuid
+  ticker           String
+  setupType        String
+  signalDate       DateTime  @db.Date
+  scanId           String?
+  entryPrice       Float
+  stopLoss         Float
+  targetPrice      Float
+  atr14            Float
+  triggerMode      String
+  statusAtSignal   String // trust status of the setup type when recorded
+  state            String // PENDING | OPEN | TARGET | STOP | EXPIRED | NOT_TRIGGERED | SKIPPED_CHASE
+  fillDate         DateTime? @db.Date
+  fillPrice        Float?
+  exitDate         DateTime? @db.Date
+  exitPrice        Float?
+  netR             Float?
+  reachedGoalFirst Boolean?
+  lastCheckedDate  DateTime? @db.Date
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@unique([ticker, setupType, signalDate])
+  @@index([state])
+  @@index([setupType, state])
+}
+
 model EodIngestionRun {
   id                       String    @id @default(uuid()) @db.Uuid
   tradingDate              DateTime  @unique @db.Date

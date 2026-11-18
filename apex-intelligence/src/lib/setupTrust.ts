@@ -7,6 +7,7 @@ export interface SetupEvidenceView {
   test: { n: number; targetPct: number; stopPct: number; expiredPct: number; avgNetR: number; ciNetR: number };
   goalRateTest: number | null;
   generatedAt: string;
+  live?: { closed: number; avgNetR: number | null; recentAvgNetR: number | null; open: number; pending: number; targetHits: number } | null;
 }
 
 export interface TrustSummary {

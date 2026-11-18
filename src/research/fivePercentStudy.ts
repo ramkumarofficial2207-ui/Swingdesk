@@ -54,23 +54,41 @@ export function simulateFrom(
     horizon: number,
     costBps: number,
 ): TradeLabel | null {
+    if (entryIndex + horizon - 1 >= bars.length) return null;
+    return progressTrade(bars, entryIndex, entry, stopPct, targetPct, horizon, costBps);
+}
+
+/**
+ * The same simulation over whatever bars exist so far: returns the label once
+ * the trade has exited (stop, target, or the last horizon session), or null
+ * while it is still open. With the full horizon available it never returns null.
+ */
+export function progressTrade(
+    bars: PriceBar[],
+    entryIndex: number,
+    entry: number,
+    stopPct: number,
+    targetPct: number,
+    horizon: number,
+    costBps: number,
+): TradeLabel | null {
     const last = entryIndex + horizon - 1;
-    if (last >= bars.length || !(entry > 0) || !(stopPct > 0)) return null;
+    if (!(entry > 0) || !(stopPct > 0) || entryIndex >= bars.length) return null;
     const target = entry * (1 + targetPct / 100);
     const stop = entry * (1 - stopPct / 100);
-    let outcome: Outcome = 'EXPIRED';
-    let exit = bars[last].close;
-    let exitIndex = last;
-    for (let index = entryIndex; index <= last; index += 1) {
+    const label = (outcome: Outcome, exit: number, exitIndex: number): TradeLabel => {
+        const grossPct = ((exit - entry) / entry) * 100;
+        return { outcome, entry, exit, netR: (grossPct - costBps / 100) / stopPct, sessionsHeld: exitIndex - entryIndex + 1, exitIndex };
+    };
+    const available = Math.min(last, bars.length - 1);
+    for (let index = entryIndex; index <= available; index += 1) {
         const bar = bars[index];
-        if (index > entryIndex && bar.open <= stop) { outcome = 'STOP'; exit = bar.open; exitIndex = index; break; }
-        if (index > entryIndex && bar.open >= target) { outcome = 'TARGET'; exit = bar.open; exitIndex = index; break; }
-        if (bar.low <= stop) { outcome = 'STOP'; exit = stop; exitIndex = index; break; }
-        if (bar.high >= target) { outcome = 'TARGET'; exit = target; exitIndex = index; break; }
+        if (index > entryIndex && bar.open <= stop) return label('STOP', bar.open, index);
+        if (index > entryIndex && bar.open >= target) return label('TARGET', bar.open, index);
+        if (bar.low <= stop) return label('STOP', stop, index);
+        if (bar.high >= target) return label('TARGET', target, index);
     }
-    const grossPct = ((exit - entry) / entry) * 100;
-    const netR = (grossPct - costBps / 100) / stopPct;
-    return { outcome, entry, exit, netR, sessionsHeld: exitIndex - entryIndex + 1, exitIndex };
+    return available === last ? label('EXPIRED', bars[last].close, last) : null;
 }
 
 /** A pre-registered exit design for the volatility-scaled study. */

@@ -1,5 +1,6 @@
 import prisma from './prismaClient';
 import { EVIDENCE_METHOD_VERSION } from './research/setupEvidence';
+import { getLiveRecords, LiveRecord } from './paperTracker';
 
 /** Trust status and test-period evidence per setup type, for the app and chat. */
 export interface SetupEvidenceView {
@@ -10,13 +11,18 @@ export interface SetupEvidenceView {
     goalRateTest: number | null;
     generatedAt: string;
     methodVersion: string;
+    /** Live paper record since the setup type went on trial; null if none yet. */
+    live: LiveRecord | null;
 }
 
 export async function getSetupEvidence(): Promise<SetupEvidenceView[]> {
-    const rows = await prisma.setupEvidence.findMany({
-        where: { methodVersion: EVIDENCE_METHOD_VERSION },
-        orderBy: { setupType: 'asc' },
-    });
+    const [rows, live] = await Promise.all([
+        prisma.setupEvidence.findMany({
+            where: { methodVersion: EVIDENCE_METHOD_VERSION },
+            orderBy: { setupType: 'asc' },
+        }),
+        getLiveRecords(),
+    ]);
     return rows.map(row => ({
         setupType: row.setupType,
         status: row.status as SetupEvidenceView['status'],
@@ -25,6 +31,7 @@ export async function getSetupEvidence(): Promise<SetupEvidenceView[]> {
         goalRateTest: row.goalRateTest,
         generatedAt: row.generatedAt.toISOString(),
         methodVersion: row.methodVersion,
+        live: live.get(row.setupType) ?? null,
     }));
 }
 

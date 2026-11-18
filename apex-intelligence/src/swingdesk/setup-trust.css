@@ -13,6 +13,7 @@
 .sd-trust-stats div{min-width:0}
 .sd-trust-stats dt{font-size:8px;color:#97a39a}
 .sd-trust-stats dd{margin:2px 0 0;font-size:11px;font-weight:600;color:#3c5446}
+.sd-trust-live{font-size:9px;color:#7d8b80;margin-top:8px!important;line-height:1.6}.sd-trust-live strong{font-weight:600;color:#5f7166}
 .sd-size{border-top:1px solid #edf1e9;margin-top:10px;padding-top:6px}
 .sd-size-row{display:flex;justify-content:space-between;font-size:10px;padding:5px 0;color:#8d9d8c}
 .sd-size-row strong{font-weight:600;color:#3c5446}

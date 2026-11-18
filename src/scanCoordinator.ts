@@ -1,4 +1,5 @@
 import { Prisma, ScanJob } from '@prisma/client';
+import { runPaperTracking } from './paperTracker';
 import {
     addThinkingStep,
     clearThinkingSteps,
@@ -358,6 +359,13 @@ async function runJob(job: ScanJob, mode: ScanMode, trigger: ScanTrigger): Promi
             await markEodQualificationCompleted(job.id).catch(error => {
                 console.warn('[ScanCoordinator] EOD qualification completion marker failed:', error?.message || error);
             });
+            // Finalized after-close scan: advance paper signals and record new
+            // ones for On-trial / Trusted setup types. Never places orders.
+            if (mode === 'swing') {
+                await runPaperTracking(scanPayload, job.id).catch(error => {
+                    console.warn('[ScanCoordinator] Paper tracking failed:', error?.message || error);
+                });
+            }
         }
 
         setAgentState('IDLE');
