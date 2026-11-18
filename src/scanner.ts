@@ -24,6 +24,7 @@ import { NewsEvent } from './newsIntel/types';
 import { buildMarketGroundingFromIndicator, buildSectorBreadthMap } from './newsIntel/marketGrounding';
 import { applyRiskGovernor } from './riskGovernor';
 import { roundToNseTick, formatNsePrice } from './pricingUtils';
+import { computeSetupLevels } from './setupLevels';
 import { Candle, MarketDataApi, MarketStatus, ScanDiagnostics, ScanResult, StockIndicators, TradeSetup } from './types';
 import { getDhanWebSocketInstance } from './dhanWebSocket';
 import { liveTickerStore } from './liveTickerStore';
@@ -1323,76 +1324,15 @@ export async function buildTradeSetups(
         const setupFamilyEarly = inferSetupFamily(setupType, ind);
 
         const atr14 = calcATR(ind.candles.slice(-30));
-        const recentHigh10 = Math.max(...ind.candles.slice(-10).map(c => c.high));
-        const recentHigh20 = Math.max(...ind.candles.slice(-20).map(c => c.high));
-        const recentHigh5 = Math.max(...ind.candles.slice(-5).map(c => c.high));
-        const recentLow5 = Math.min(...ind.candles.slice(-5).map(c => c.low));
         const recentLow8 = Math.min(...ind.candles.slice(-8).map(c => c.low));
-        const recentLow12 = Math.min(...ind.candles.slice(-12).map(c => c.low));
-
-        let rawEntryPrice = lastCandle.high * 1.001;
-        if (setupType.includes('Pre-Surge')) {
-            rawEntryPrice = Math.max(lastCandle.high, recentHigh5) * 1.001;
-        } else if (setupType === 'Leader Pullback Reclaim') {
-            rawEntryPrice = Math.max(lastCandle.high, ind.ema20, recentHigh10) * 1.001;
-        } else if (setupType === 'Second-Entry Retest') {
-            rawEntryPrice = Math.max(lastCandle.high, recentHigh20) * 1.0012;
-        } else if (setupType === 'Earnings Reaction Continuation') {
-            rawEntryPrice = Math.max(lastCandle.high, recentHigh10, ind.ema20) * 1.001;
-        } else if (setupType === 'Compression in Leaders') {
-            rawEntryPrice = Math.max(lastCandle.high, recentHigh5) * 1.0015;
-        }
-        const entryPrice = roundToNseTick(rawEntryPrice);
         const previousClose = ind.candles[ind.candles.length - 2]?.close ?? lastCandle.close;
         const gapPct = calcGapPct(lastCandle.open, previousClose);
 
-        let rawStopLoss = 0;
-        if (setupType.includes('Pre-Surge')) {
-            rawStopLoss = Math.min(recentLow8, ind.ema20 * 0.985, entryPrice - 1.5 * atr14);
-        } else if (ind.isDeepValue) {
-            const recentLows = ind.candles.slice(-15).map(c => c.low);
-            rawStopLoss = Math.min(...recentLows) * 0.99;
-        } else if (setupType === 'Leader Pullback Reclaim') {
-            rawStopLoss = Math.min(recentLow8, ind.ema20 * 0.993, entryPrice - 1.3 * atr14);
-        } else if (setupType === 'Second-Entry Retest') {
-            rawStopLoss = Math.min(recentLow12, ind.ema20 * 0.992, entryPrice - 1.5 * atr14);
-        } else if (setupType === 'Earnings Reaction Continuation') {
-            rawStopLoss = Math.min(recentLow5, previousClose * 0.995, entryPrice - 1.4 * atr14);
-        } else if (setupType === 'Compression in Leaders') {
-            rawStopLoss = Math.min(recentLow5, ind.ema20 * 0.994, entryPrice - 1.25 * atr14);
-        } else if (setupType.includes('VCP') || ind.isBullFlag || setupType === 'Squeeze Breakout' || setupType === 'Compression Breakout') {
-            const recentLows = ind.candles.slice(-5).map(c => c.low);
-            rawStopLoss = Math.min(...recentLows) * 0.993;
-        } else if (setupType.includes('Pullback')) {
-            const recentLows = ind.candles.slice(-8).map(c => c.low);
-            rawStopLoss = Math.min(...recentLows) * 0.994;
-        } else {
-            rawStopLoss = Math.min(ind.ema20 * 0.99, entryPrice - 1.5 * atr14);
-        }
-
-        if (entryPrice - rawStopLoss > 2.5 * atr14) rawStopLoss = entryPrice - 2.5 * atr14;
-        if (rawStopLoss >= entryPrice) rawStopLoss = entryPrice - atr14;
-
-        const stopLoss = roundToNseTick(rawStopLoss);
-        const slPct = +(((entryPrice - stopLoss) / entryPrice) * 100).toFixed(2);
-
-        if (stopLoss <= 0 || stopLoss >= entryPrice) continue;
-
-        const targetAtrMult = setupType.includes('Pre-Surge') ? 4.0 :
-            setupType === 'Leader Pullback Reclaim' ? 2.8 :
-            setupType === 'Second-Entry Retest' ? 3.1 :
-                setupType === 'Earnings Reaction Continuation' ? 3.4 :
-                    setupType === 'Compression in Leaders' ? 3.2 :
-                        setupType === 'Deep Value Reversion 📉' ? 2.6 : 3.0;
-        const target1 = roundToNseTick(entryPrice + targetAtrMult * atr14);
-        let targetPrice = target1;
-
-        if (ind.isDeepValue && ind.ema50 > entryPrice + (2.0 * atr14)) {
-            targetPrice = roundToNseTick(ind.ema50);
-        }
-
-        const target2 = roundToNseTick(targetPrice + 1.5 * atr14);
-        const targetPct = +(((targetPrice - entryPrice) / entryPrice) * 100).toFixed(2);
+        // Shared with the historical replay and setup evidence study, so the
+        // levels shown here are exactly the levels that were tested.
+        const levels = computeSetupLevels(setupType, ind, atr14);
+        if (!levels) continue;
+        const { entryPrice, stopLoss, slPct, targetPrice, target2, targetPct } = levels;
         const rawRiskReward = +(((targetPrice - entryPrice) / (entryPrice - stopLoss))).toFixed(2);
         const slippagePct = estimateSlippagePct(marketCapCr, ind.volumeRatio, 'Swing');
         const effectiveRiskReward = calcEffectiveRiskReward(entryPrice, stopLoss, targetPrice, slippagePct);
@@ -1633,9 +1573,10 @@ export async function buildTradeSetups(
             setupCategory: horizon.category,
             thesisHorizonDays: horizon.horizonDays,
             timeframe,
-            earningsRisk: earnings.blocked,
+            // Unknown results dates are flagged, never treated as safe.
+            earningsRisk: earnings.blocked || !earnings.checked,
             newsRisk: news.blocked,
-            newsSummary: earnings.blocked ? earnings.reason : news.reason,
+            newsSummary: !earnings.checked ? earnings.reason : news.reason,
             headlines: news.headlines,
             momentumRank: index + 1,
             volatilityHitProb: hitProb,

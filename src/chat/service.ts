@@ -16,6 +16,12 @@ import {
 } from './types';
 import { getPortfolioNewsRisk, getPortfolioSummary } from '../portfolioService';
 import { getTickerNewsDigest } from '../newsIntel/service';
+import { getSetupEvidence, SetupEvidenceView } from '../setupEvidenceService';
+import { summarizeAllEvidence, summarizeSetupEvidence } from './setupEvidenceText';
+
+async function loadSetupEvidence(): Promise<SetupEvidenceView[]> {
+    try { return await getSetupEvidence(); } catch { return []; }
+}
 
 function formatPrice(value: number | null | undefined): string {
     if (value == null || !Number.isFinite(value)) return 'N/A';
@@ -127,12 +133,13 @@ function buildUnsupportedResponse(intent: ChatIntent): GroundedChatResponse {
     };
 }
 
-function buildStockReply(report: StockReport, setup: TradeSetup | null, scan: ScanResult | null): GroundedChatResponse {
+function buildStockReply(report: StockReport, setup: TradeSetup | null, scan: ScanResult | null, setupEvidence: SetupEvidenceView[]): GroundedChatResponse {
     const evidence = deriveConfidence(report, setup);
     const dataUsed = ['NSE quote snapshot', 'Technical indicators'];
     const notes: string[] = [];
     if (report.peRatio != null || report.roe != null) dataUsed.push('Fundamental snapshot');
-    if (setup) dataUsed.push('Latest swing scanner');
+    if (setup) dataUsed.push('Latest swing scanner', 'Setup evidence');
+    const trust = setup ? summarizeSetupEvidence(setup.setupType, setupEvidence) : null;
     if (!setup) notes.push('No active scanner-backed setup is attached to this ticker right now.');
     if (report.volumeRatio == null) notes.push('Volume intensity is unavailable in the current snapshot.');
 
@@ -141,7 +148,9 @@ function buildStockReply(report: StockReport, setup: TradeSetup | null, scan: Sc
     const scannerLine = setup
         ? `Scanner context: ${setup.setupType} with confidence ${setup.confidenceScore}/10, buy zone ${formatPrice(setup.buyZone)}, target ${formatPrice(setup.target)}, stop ${formatPrice(setup.stopLoss)}.`
         : 'Scanner context: no current swing setup is attached to this stock in the latest cached scan.';
-    const verdictLine = setup
+    const verdictLine = setup && trust && !trust.tradeable
+        ? `Verdict: the ${setup.setupType} setup is ${trust.label.toLowerCase()} on past evidence, so do not risk real money on it yet. Use the levels only for paper tracking.`
+        : setup
         ? `Verdict: evidence strength ${evidence}/10. Treat the scanner levels as the working trade frame and invalidate the idea if price loses the stop or volume confirmation fades.`
         : `Verdict: evidence strength ${evidence}/10. This is a grounded stock snapshot, but it is not a scanner-backed trade setup yet.`;
     const marketLine = scan?.marketStatus?.regime
@@ -154,6 +163,7 @@ function buildStockReply(report: StockReport, setup: TradeSetup | null, scan: Sc
         `${trendLine}`,
         `${fundamentalLine}`,
         `${scannerLine}`,
+        ...(trust ? [trust.line] : []),
         `${marketLine}`,
         `${verdictLine}`,
     ].join('\n');
@@ -173,7 +183,7 @@ function buildStockReply(report: StockReport, setup: TradeSetup | null, scan: Sc
     };
 }
 
-function buildScannerReply(scan: ScanResult | null): GroundedChatResponse {
+function buildScannerReply(scan: ScanResult | null, setupEvidence: SetupEvidenceView[]): GroundedChatResponse {
     if (!scan || !scan.setups.length) {
         return {
             reply: 'Scanner context is not ready yet. Run a market scan first or wait for the scheduled scan before asking for top setups.',
@@ -189,14 +199,19 @@ function buildScannerReply(scan: ScanResult | null): GroundedChatResponse {
     }
 
     const top = scan.setups.slice(0, 5).map((setup, index) =>
-        `${index + 1}. ${setup.ticker} | ${setup.setupType} | confidence ${setup.confidenceScore}/10 | buy ${formatPrice(setup.buyZone)} | target ${formatPrice(setup.target)} | stop ${formatPrice(setup.stopLoss)}`
+        `${index + 1}. ${setup.ticker} | ${setup.setupType} (${summarizeSetupEvidence(setup.setupType, setupEvidence).label}) | buy ${formatPrice(setup.buyZone)} | target ${formatPrice(setup.target)} | stop ${formatPrice(setup.stopLoss)}`
     );
+    const trustedCount = scan.setups.slice(0, 5).filter(setup => summarizeSetupEvidence(setup.setupType, setupEvidence).tradeable).length;
 
     const reply = [
         `Latest scanner-backed setups from ${new Date(scan.timestamp).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}.`,
         '',
         `Market regime: ${scan.marketStatus.regime || 'N/A'}${scan.marketStatus.warning ? ` | ${scan.marketStatus.warning}` : ''}`,
         ...top,
+        '',
+        trustedCount
+            ? `${trustedCount} of these use a trusted setup type. Size them from the stop and check results dates before buying.`
+            : 'None of these use a trusted setup type yet. Treat them as research and paper trades, not real-money buys.',
     ].join('\n');
 
     return {
@@ -206,7 +221,7 @@ function buildScannerReply(scan: ScanResult | null): GroundedChatResponse {
         meta: makeMeta({
             supportLevel: 'supported',
             scannerContextUsed: true,
-            dataUsed: ['Latest swing scanner'],
+            dataUsed: ['Latest swing scanner', 'Setup evidence'],
             lastUpdated: scan.timestamp,
             notes: ['These are cached scan results, not ad hoc predictions.'],
         }),
@@ -317,7 +332,7 @@ async function buildPortfolioReply(userId: string, scan: ScanResult | null): Pro
     };
 }
 
-async function buildPerformanceReply(): Promise<GroundedChatResponse> {
+async function buildPerformanceReply(setupEvidence: SetupEvidenceView[]): Promise<GroundedChatResponse> {
     const history = await prisma.historicalSetup.findMany({
         orderBy: { createdAt: 'desc' },
         take: 100,
@@ -326,9 +341,9 @@ async function buildPerformanceReply(): Promise<GroundedChatResponse> {
     const resolved = history.filter(item => item.status === 'WON' || item.status === 'LOST');
     if (!resolved.length) {
         return {
-            reply: 'There is not enough closed-trade history yet to claim a grounded win rate. Until that history exists, the assistant should not state an accuracy percentage.',
+            reply: [...summarizeAllEvidence(setupEvidence), '', 'Live log: there is not enough closed-trade history yet to claim a live win rate.'].join('\n'),
             stockCard: null,
-            sources: ['Historical setup log'],
+            sources: ['Setup evidence', 'Historical setup log'],
             meta: makeMeta({
                 supportLevel: 'partial',
                 dataUsed: ['Historical setup log'],
@@ -345,7 +360,9 @@ async function buildPerformanceReply(): Promise<GroundedChatResponse> {
     const winRate = +((won.length / resolved.length) * 100).toFixed(1);
 
     const reply = [
-        'Grounded track record summary:',
+        ...summarizeAllEvidence(setupEvidence),
+        '',
+        'Live log (latest 100 tracked setups):',
         `- Resolved setups: ${resolved.length}`,
         `- Won: ${won.length}`,
         `- Lost: ${lost.length}`,
@@ -359,10 +376,10 @@ async function buildPerformanceReply(): Promise<GroundedChatResponse> {
     return {
         reply,
         stockCard: null,
-        sources: ['Historical setup log'],
+        sources: ['Setup evidence', 'Historical setup log'],
         meta: makeMeta({
             supportLevel: 'supported',
-            dataUsed: ['Historical setup log'],
+            dataUsed: ['Setup evidence', 'Historical setup log'],
             lastUpdated: history[0]?.createdAt?.toISOString?.() ?? isoNow(),
             notes: ['Performance is based on stored resolved setups only.'],
         }),
@@ -511,7 +528,7 @@ export async function buildGroundedChatResponse(input: BuildChatResponseInput): 
     }
 
     if (intent.kind === 'performance_query') {
-        return buildPerformanceReply();
+        return buildPerformanceReply(await loadSetupEvidence());
     }
 
     if (intent.kind === 'portfolio_query') {
@@ -519,7 +536,7 @@ export async function buildGroundedChatResponse(input: BuildChatResponseInput): 
     }
 
     if (intent.kind === 'scanner_query') {
-        return buildScannerReply(input.lastSwingScan);
+        return buildScannerReply(input.lastSwingScan, await loadSetupEvidence());
     }
 
     if (intent.kind === 'market_query') {
@@ -544,7 +561,7 @@ export async function buildGroundedChatResponse(input: BuildChatResponseInput): 
         }
 
         const setup = findSetup(input.lastSwingScan, intent.ticker);
-        return buildStockReply(report, setup, input.lastSwingScan);
+        return buildStockReply(report, setup, input.lastSwingScan, setup ? await loadSetupEvidence() : []);
     }
 
     return buildConceptReply(input.message);

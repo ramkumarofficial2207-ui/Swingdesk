@@ -425,6 +425,27 @@ model CorporateAction {
   @@index([symbol, exDate])
 }
 
+/// Replay evidence and trust status per scanner setup type
+/// (reports/setup-trust-rules.md). One row per setup type and method version.
+model SetupEvidence {
+  id            String   @id @default(uuid()) @db.Uuid
+  setupType     String
+  methodVersion String
+  status        String // RESEARCH_ONLY | ON_TRIAL | TRUSTED
+  reasons       Json
+  discovery     Json
+  test          Json
+  testYears     Json
+  signals       Json // signal, trigger, chase-skip counts
+  goalRateTest  Float? // share of test trades reaching +5% before the stop
+  generatedAt   DateTime
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([setupType, methodVersion])
+  @@index([status])
+}
+
 model EodIngestionRun {
   id                       String    @id @default(uuid()) @db.Uuid
   tradingDate              DateTime  @unique @db.Date
