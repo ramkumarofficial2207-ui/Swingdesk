@@ -57,7 +57,7 @@
         "node-cron": "^4.6.0",
         "node-telegram-bot-api": "^1.2.0",
         "nodemailer": "^9.0.3",
-        "prisma": "^5.22.0",
+        "prisma": "^7.10.1",
         "puppeteer-core": "^25.4.0",
         "technicalindicators": "^3.1.0",
         "twilio": "^5.13.1",
@@ -73,7 +73,7 @@
         "@types/node": "^20.19.33",
         "@types/node-cron": "^3.0.11",
         "concurrently": "^9.2.1",
-        "prisma": "^5.22.0",
+        "prisma": "^7.10.1",
         "ts-node-dev": "^2.0.0",
         "typescript": "^5.3.3",
         "vitest": "^3.2.4"
