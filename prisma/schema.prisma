@@ -206,16 +206,16 @@ model HistoricalSetup {
 // to decide whether a live price is still buyable. activeKey is populated only
 // while the plan is active, enforcing one live plan per ticker/strategy/timeframe.
 model TradePlan {
-  id                String  @id @default(uuid()) @db.Uuid
-  historicalSetupId String  @unique @db.Uuid
-  ticker            String
-  strategyFamily    String
-  strategyVersion   String  @default("PRE_SURGE_V2")
+  id                    String  @id @default(uuid()) @db.Uuid
+  historicalSetupId     String  @unique @db.Uuid
+  ticker                String
+  strategyFamily        String
+  strategyVersion       String  @default("PRE_SURGE_V2")
   shadowStrategyVersion String?
   shadowPlan            Json?
-  timeframe         String
-  status            String  @default("QUALIFIED")
-  activeKey         String? @unique
+  timeframe             String
+  status                String  @default("QUALIFIED")
+  activeKey             String? @unique
 
   earlyEntryLow         Float?
   earlyEntryHigh        Float?
@@ -404,6 +404,25 @@ model DailyCandle {
   @@id([symbol, tradingDate])
   @@index([tradingDate, isFinal])
   @@index([tradingDate, turnoverCr])
+}
+
+/// Split, bonus and consolidation events used to adjust historical prices.
+/// Raw DailyCandle rows are never modified; adjustment is applied on read.
+/// priceFactor multiplies every price before exDate (0.5 for a 1:1 bonus or
+/// 2-for-1 split); volume before exDate is divided by it.
+model CorporateAction {
+  id          String   @id @default(uuid()) @db.Uuid
+  symbol      String
+  exDate      DateTime @db.Date
+  kind        String // SPLIT | BONUS | CONSOLIDATION
+  ratio       String // e.g. "2:1" new shares for old
+  priceFactor Float
+  source      String // YAHOO_SPLITS | MANUAL
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([symbol, exDate, source])
+  @@index([symbol, exDate])
 }
 
 model EodIngestionRun {
