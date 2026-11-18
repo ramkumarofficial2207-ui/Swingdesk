@@ -5,6 +5,7 @@ import 'dotenv/config';
 import { personalMode, isLocalWorkspaceRequest, openPersonalWorkspace } from './personalWorkspace';
 import { getWorkspaceHistory } from './workspaceChart';
 import { getEodResearchSignals } from './eodResearchSignals';
+import { getSetupEvidence } from './setupEvidenceService';
 import { assessWorkspaceReadiness } from './workspaceReadiness';
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
@@ -1237,6 +1238,11 @@ app.get('/api/last', requireAuth, requireSubscription, async (req: Request, res:
 app.get('/api/research/eod-signals', requireAuth, requireSubscription, async (_req: Request, res: Response) => {
     try { res.setHeader('Cache-Control', 'no-store'); res.json({ success: true, data: await getEodResearchSignals() }); }
     catch (error: any) { res.status(503).json({ success: false, message: 'EOD research signals are unavailable.' }); }
+});
+
+app.get('/api/research/setup-evidence', requireAuth, requireSubscription, async (_req: Request, res: Response) => {
+    try { res.setHeader('Cache-Control', 'no-store'); res.json({ success: true, data: await getSetupEvidence() }); }
+    catch (error: any) { res.status(503).json({ success: false, message: 'Setup evidence is unavailable.' }); }
 });
 
 app.get('/api/market-data/eod/status', requireAuth, requireSubscription, async (_req: Request, res: Response) => {
