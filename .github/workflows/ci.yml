@@ -21,7 +21,7 @@ jobs:
       # Prisma generate needs a syntactically valid URL; tests do not connect.
       DATABASE_URL: postgresql://ci:ci@localhost:5432/ci?schema=public
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
           node-version: 20
@@ -39,7 +39,7 @@ jobs:
       run:
         working-directory: apex-intelligence
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
           node-version: 20
