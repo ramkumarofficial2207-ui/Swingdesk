@@ -37,6 +37,17 @@ export function SetupTrustPanel({ trust, entry, stop, capital, maxRiskPct, avail
           <div><dt>+5% first</dt><dd>{trust.evidence?.goalRateTest == null ? '—' : `${trust.evidence.goalRateTest.toFixed(0)}%`}</dd></div>
         </dl>
       )}
+      {trust.status !== 'RESEARCH_ONLY' && (
+        <p className="sd-trust-live">
+          <strong>Live paper record:</strong>{' '}
+          {trust.evidence?.live?.closed
+            ? `${trust.evidence.live.closed} of 30 trades closed, average ${formatR(trust.evidence.live.avgNetR ?? 0)}`
+            : 'no closed paper trades yet'}
+          {trust.evidence?.live && (trust.evidence.live.open || trust.evidence.live.pending)
+            ? ` · ${trust.evidence.live.open} open, ${trust.evidence.live.pending} waiting for a trigger`
+            : ''}
+        </p>
+      )}
       {size && (
         <div className="sd-size">
           <div className="sd-size-row"><span>{tradeable ? 'Position size' : 'Size if it were trusted'}</span><strong>{size.shares.toLocaleString('en-IN')} shares</strong></div>

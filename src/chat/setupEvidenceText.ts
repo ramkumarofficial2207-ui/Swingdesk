@@ -36,10 +36,15 @@ export function summarizeSetupEvidence(setupType: string, evidence: SetupEvidenc
         : item.status === 'ON_TRIAL'
             ? 'It passed the test period; paper trade it until 30 live trades confirm it.'
             : 'Do not risk real money on it.';
+    const live = item.status !== 'RESEARCH_ONLY'
+        ? item.live?.closed
+            ? ` Live paper record: ${item.live.closed} of 30 trades closed, average ${r(item.live.avgNetR ?? 0)}.`
+            : ' Live paper record: no closed paper trades yet.'
+        : '';
     return {
         label: STATUS_TEXT[item.status],
         tradeable: item.status === 'TRUSTED',
-        line: `Setup evidence: ${setupType} is ${STATUS_TEXT[item.status].toLowerCase()}. ${record} ${guidance}`,
+        line: `Setup evidence: ${setupType} is ${STATUS_TEXT[item.status].toLowerCase()}. ${record} ${guidance}${live}`,
     };
 }
 

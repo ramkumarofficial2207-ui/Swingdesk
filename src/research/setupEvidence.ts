@@ -6,7 +6,7 @@
 import { PriceBar } from '../corporateActions';
 import { calculateMaxBreakoutEntry } from '../executionIntegrity';
 import { SetupLevels } from '../setupLevels';
-import { OutcomeStats, simulateFrom, TradeLabel } from './fivePercentStudy';
+import { OutcomeStats, progressTrade, TradeLabel } from './fivePercentStudy';
 
 /**
  * v2 (trust rules v2): trigger is confirmed at the close and filled at the
@@ -55,23 +55,30 @@ export type ScannerTradeResult =
     | { kind: 'NOT_TRIGGERED' | 'SKIPPED_CHASE' | 'INSUFFICIENT_DATA' };
 
 /**
- * Replay one scanner signal from the close of signalIndex:
- * - plan valid for 10 sessions;
- * - triggers on the first session whose high reaches entry with volume
- *   ≥ 1.5× the prior 20-session average;
- * - if that session opens above the app's maximum entry, the trade is
- *   skipped (no chasing), as the app would block it;
- * - fill at entry, or at the open if it gapped above entry within the cap.
+ * Progress of one scanner signal given the bars known so far. Used both by
+ * the historical replay and by live paper tracking, so both apply exactly
+ * the same rules:
+ * - plan valid for 10 sessions after the signal;
+ * - trigger per TriggerMode (see above);
+ * - no trade if the triggering session opens above the app's maximum entry;
+ * - fill at entry, or at the open if it gapped above entry within the cap;
+ * - then stop / target / 10-session time exit (conservative ordering).
  */
-export function replayScannerSignal(bars: PriceBar[], signalIndex: number, levels: SetupLevels, atr14: number, mode: TriggerMode = EVIDENCE_TRIGGER_MODE): ScannerTradeResult {
+export type SignalProgress =
+    | { state: 'PENDING' }
+    | { state: 'NOT_TRIGGERED' | 'SKIPPED_CHASE' }
+    | { state: 'OPEN'; fillIndex: number; fill: number }
+    | { state: 'CLOSED'; trade: ScannerTrade; goalResolved: boolean };
+
+export function advanceScannerSignal(bars: PriceBar[], signalIndex: number, levels: SetupLevels, atr14: number, mode: TriggerMode): SignalProgress {
     const { entryPrice, stopLoss, targetPrice } = levels;
     const maxEntry = calculateMaxBreakoutEntry(entryPrice, atr14);
     const lastPlanIndex = signalIndex + EVIDENCE_RULES.planSessions;
-    if (lastPlanIndex >= bars.length) return { kind: 'INSUFFICIENT_DATA' };
-    for (let index = signalIndex + 1; index <= lastPlanIndex; index += 1) {
+    const lastKnown = Math.min(lastPlanIndex, bars.length - 1);
+    for (let index = signalIndex + 1; index <= lastKnown; index += 1) {
         const bar = bars[index];
         if (bar.high < entryPrice) continue;
-        if (bar.open > maxEntry) return { kind: 'SKIPPED_CHASE' };
+        if (bar.open > maxEntry) return { state: 'SKIPPED_CHASE' };
         const prior = bars.slice(Math.max(0, index - 20), index);
         const averageVolume = prior.reduce((sum, item) => sum + item.volume, 0) / Math.max(prior.length, 1);
         const volumeConfirmed = averageVolume > 0 && bar.volume >= EVIDENCE_RULES.triggerVolumeRatio * averageVolume;
@@ -81,19 +88,36 @@ export function replayScannerSignal(bars: PriceBar[], signalIndex: number, level
         if (mode === 'CLOSE_CONFIRMED_NEXT_OPEN') {
             if (!volumeConfirmed || bar.close < entryPrice) continue;
             fillIndex = index + 1;
-            if (fillIndex >= bars.length) return { kind: 'INSUFFICIENT_DATA' };
+            if (fillIndex >= bars.length) return { state: 'PENDING' };
             fill = bars[fillIndex].open;
-            if (fill > maxEntry) return { kind: 'SKIPPED_CHASE' };
+            if (fill > maxEntry) return { state: 'SKIPPED_CHASE' };
         }
-        if (!(fill > stopLoss) || !(targetPrice > fill)) return { kind: 'SKIPPED_CHASE' };
+        if (!(fill > stopLoss) || !(targetPrice > fill)) return { state: 'SKIPPED_CHASE' };
         const stopPct = ((fill - stopLoss) / fill) * 100;
         const targetPct = ((targetPrice - fill) / fill) * 100;
-        const label = simulateFrom(bars, fillIndex, fill, stopPct, targetPct, EVIDENCE_RULES.holdSessions, EVIDENCE_RULES.costBps);
-        const goal = simulateFrom(bars, fillIndex, fill, stopPct, EVIDENCE_RULES.goalPct, EVIDENCE_RULES.holdSessions, EVIDENCE_RULES.costBps);
-        if (!label || !goal) return { kind: 'INSUFFICIENT_DATA' };
-        return { kind: 'TRADE', trade: { label, fillIndex, fill, reachedGoalFirst: goal.outcome === 'TARGET' } };
+        const label = progressTrade(bars, fillIndex, fill, stopPct, targetPct, EVIDENCE_RULES.holdSessions, EVIDENCE_RULES.costBps);
+        if (!label) return { state: 'OPEN', fillIndex, fill };
+        const goal = progressTrade(bars, fillIndex, fill, stopPct, EVIDENCE_RULES.goalPct, EVIDENCE_RULES.holdSessions, EVIDENCE_RULES.costBps);
+        return {
+            state: 'CLOSED',
+            goalResolved: !!goal,
+            trade: { label, fillIndex, fill, reachedGoalFirst: goal?.outcome === 'TARGET' },
+        };
     }
-    return { kind: 'NOT_TRIGGERED' };
+    return lastKnown < lastPlanIndex ? { state: 'PENDING' } : { state: 'NOT_TRIGGERED' };
+}
+
+/**
+ * Historical replay of one signal. Requires the full plan window and the full
+ * holding window to exist (pre-registered method), otherwise INSUFFICIENT_DATA.
+ */
+export function replayScannerSignal(bars: PriceBar[], signalIndex: number, levels: SetupLevels, atr14: number, mode: TriggerMode = EVIDENCE_TRIGGER_MODE): ScannerTradeResult {
+    if (signalIndex + EVIDENCE_RULES.planSessions >= bars.length) return { kind: 'INSUFFICIENT_DATA' };
+    const progress = advanceScannerSignal(bars, signalIndex, levels, atr14, mode);
+    if (progress.state === 'NOT_TRIGGERED' || progress.state === 'SKIPPED_CHASE') return { kind: progress.state };
+    if (progress.state !== 'CLOSED') return { kind: 'INSUFFICIENT_DATA' };
+    if (progress.trade.fillIndex + EVIDENCE_RULES.holdSessions - 1 >= bars.length) return { kind: 'INSUFFICIENT_DATA' };
+    return { kind: 'TRADE', trade: progress.trade };
 }
 
 export interface StatusDecision {
@@ -109,8 +133,10 @@ export function decideTrustStatus(params: {
     test: OutcomeStats;
     testYears: Array<{ year: string; stats: OutcomeStats }>;
     liveTrades?: { n: number; avgNetR: number };
+    /** Average net R of the most recent 30 live trades, once 30 exist. */
+    recentLiveAvgNetR?: number | null;
 }): StatusDecision {
-    const { test, testYears, liveTrades } = params;
+    const { test, testYears, liveTrades, recentLiveAvgNetR } = params;
     const positiveYears = testYears.filter(item => item.stats.n > 0 && item.stats.avgNetR > 0).length;
     const failures: string[] = [];
     if (test.n < EVIDENCE_RULES.minTestTrades) failures.push(`Only ${test.n} test trades (needs ${EVIDENCE_RULES.minTestTrades})`);
@@ -118,6 +144,12 @@ export function decideTrustStatus(params: {
     if (!(test.avgNetR - test.ciNetR > 0)) failures.push('95% range includes zero or below');
     if (positiveYears < EVIDENCE_RULES.minPositiveTestYears) failures.push(`Positive in ${positiveYears} of ${testYears.length} test years (needs ${EVIDENCE_RULES.minPositiveTestYears})`);
     if (failures.length) return { status: 'RESEARCH_ONLY', reasons: failures };
+    if (recentLiveAvgNetR != null && recentLiveAvgNetR <= 0) {
+        return {
+            status: 'RESEARCH_ONLY',
+            reasons: [`Demoted: the most recent ${EVIDENCE_RULES.trustedMinLiveTrades} live paper trades averaged ${recentLiveAvgNetR.toFixed(2)}R`],
+        };
+    }
     if (liveTrades && liveTrades.n >= EVIDENCE_RULES.trustedMinLiveTrades && liveTrades.avgNetR > 0) {
         return { status: 'TRUSTED', reasons: [`Passed the test period and ${liveTrades.n} live paper trades averaging ${liveTrades.avgNetR.toFixed(2)}R`] };
     }
