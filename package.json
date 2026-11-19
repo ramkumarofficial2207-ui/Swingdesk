@@ -48,7 +48,8 @@
         "data:freshness": "ts-node --transpile-only src/dataFreshness.ts",
         "nightly:research": "node --max-old-space-size=4096 -r ts-node/register/transpile-only src/nightlyResearch.ts",
         "research:sector-momentum": "node --max-old-space-size=8192 -r ts-node/register/transpile-only src/research/cards/sectorMomentum.ts",
-        "data:global": "ts-node --transpile-only src/globalMarketBackfill.ts"
+        "data:global": "ts-node --transpile-only src/globalMarketBackfill.ts",
+        "research:global-cues": "node --max-old-space-size=8192 -r ts-node/register/transpile-only src/research/cards/globalCues.ts"
     },
     "dependencies": {
         "@anthropic-ai/sdk": "^0.78.0",
