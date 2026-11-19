@@ -43,13 +43,14 @@ export function indiaToday(now = new Date()): string {
 const day = (value: Date | null | undefined) => (value ? value.toISOString().slice(0, 10) : null);
 
 export async function checkFreshness(today = indiaToday()): Promise<FeedStatus[]> {
-    const [candle, eod, results, deal, flowSnapshot, flow] = await Promise.all([
+    const [candle, eod, results, deal, flowSnapshot, flow, global] = await Promise.all([
         prisma.dailyCandle.findFirst({ where: { isFinal: true, symbol: 'NIFTY_50' }, orderBy: { tradingDate: 'desc' }, select: { tradingDate: true } }),
         prisma.eodIngestionRun.findFirst({ where: { status: 'READY' }, orderBy: { tradingDate: 'desc' }, select: { tradingDate: true } }),
         prisma.resultsEvent.findFirst({ orderBy: { createdAt: 'desc' }, select: { createdAt: true } }),
         prisma.institutionalDeal.findFirst({ orderBy: { tradeDate: 'desc' }, select: { tradeDate: true } }),
         prisma.institutionalFlowSnapshot.findFirst({ orderBy: { tradingDate: 'desc' }, select: { tradingDate: true } }),
         prisma.institutionalFlow.findFirst({ orderBy: { date: 'desc' }, select: { date: true } }),
+        prisma.globalMarketDaily.findFirst({ where: { series: 'COPPER' }, orderBy: { date: 'desc' }, select: { date: true } }),
     ]);
     return [
         classify('Daily candles (final)', day(candle?.tradingDate), today, 1, true),
@@ -58,6 +59,7 @@ export async function checkFreshness(today = indiaToday()): Promise<FeedStatus[]
         classify('Bulk/block deals', day(deal?.tradeDate), today, 3, false),
         classify('Institutional flow snapshot', day(flowSnapshot?.tradingDate), today, 3, false),
         classify('FII/DII flows', day(flow?.date), today, 3, false),
+        classify('Global markets and commodities', day(global?.date), today, 2, true),
     ];
 }
 

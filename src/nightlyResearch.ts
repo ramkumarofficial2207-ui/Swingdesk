@@ -1,11 +1,13 @@
 import 'dotenv/config';
 import prisma from './prismaClient';
 import { checkFreshness } from './dataFreshness';
+import { backfillGlobalMarkets } from './globalMarketBackfill';
 import { check, frozenDates, isFrozen, make } from './research/forwardCheck';
 
 /**
  * Nightly research step, run after the finalized post-market scan
  * (SETUP_DISCOVERY_ROADMAP.md Phase 0). Never places orders.
+ *  0. Tops up global market and commodity closes.
  *  1. Data freshness: logs every stale feed.
  *  2. Forward check: freezes this close's rule-based lists (never overwrites)
  *     and re-scores the frozen lists from the last 10 signal dates.
@@ -13,6 +15,7 @@ import { check, frozenDates, isFrozen, make } from './research/forwardCheck';
  *   npm run nightly:research
  */
 export async function runNightlyResearch(): Promise<void> {
+    await backfillGlobalMarkets().catch(error => console.warn('[Nightly] Global market top-up failed:', error?.message ?? error));
     const feeds = await checkFreshness();
     for (const feed of feeds.filter(item => item.status !== 'OK')) {
         console.warn(`[Nightly] ${feed.status} feed: ${feed.feed} (latest ${feed.latest ?? 'none'}, lag ${feed.lagWeekdays ?? '—'} weekdays, max ${feed.maxLagWeekdays})`);

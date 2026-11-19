@@ -766,3 +766,23 @@ model SignalLabsAlert {
   @@index([symbol, alertDate])
   @@map("signal_labs_alerts")
 }
+
+/// Daily global market and commodity closes (SETUP_DISCOVERY_ROADMAP.md Phase 2).
+/// `date` is the trading date in the series' own exchange time zone; a US
+/// close dated D is known before India's open on the next Indian session.
+model GlobalMarketDaily {
+  id        String   @id @default(uuid()) @db.Uuid
+  series    String // COPPER | BRENT | USDINR | NASDAQ | SP500 | GOLD
+  ticker    String
+  date      DateTime @db.Date
+  open      Float?
+  high      Float?
+  low       Float?
+  close     Float
+  source    String   @default("YAHOO_CHART")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([series, date])
+  @@index([date])
+}
