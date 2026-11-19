@@ -206,5 +206,41 @@
       "dayClustered": -0.2738899035987442
     },
     "verdict": "FAIL"
+  },
+  {
+    "id": "institutional-buys-f1",
+    "name": "Institutional bulk buys F1 (all institutions)",
+    "plan": "institutional-buys-plan.md",
+    "ranAt": "2026-11-19T15:18:27.924Z",
+    "kind": "pre-registered",
+    "discovery": {
+      "n": 137,
+      "avg": -0.9787092080399526,
+      "dayClustered": -1.1115677842362222
+    },
+    "test": {
+      "n": 157,
+      "avg": -1.425404576283144,
+      "dayClustered": -1.2917941019526389
+    },
+    "verdict": "FAIL"
+  },
+  {
+    "id": "institutional-buys-f2",
+    "name": "Institutional bulk buys F2 (active funds only)",
+    "plan": "institutional-buys-plan.md",
+    "ranAt": "2026-11-19T15:19:28.092Z",
+    "kind": "pre-registered",
+    "discovery": {
+      "n": 123,
+      "avg": -0.752589153445736,
+      "dayClustered": -0.9511019133281221
+    },
+    "test": {
+      "n": 152,
+      "avg": -0.8973237608119958,
+      "dayClustered": -1.0680936005892099
+    },
+    "verdict": "FAIL"
   }
 ]

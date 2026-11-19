@@ -161,6 +161,12 @@ Mover-review runs weekly from Phase 0 onward and adds hypotheses to the queue.
 
 Per cue (information only): **copper falls → consumer durables** was positive in both periods (discovery +0.37%, 61 trades; test +0.68%, day-clustered +0.57%, 46 trades). **Rupee weakens → IT and pharma** was clearly negative in both (−0.78%, −0.83%). Promoting one cue after seeing test results is the A2/A4 trap, so neither changes the verdict. The copper cue can only be judged on **new live data** (forward paper), never on 2021–26 again.
 
+### Phase 3 result (2026-11-19): institutional bulk buys ❌ FAIL
+
+[Report](reports/institutional-buys.md). Feed repair first: the 16:10 institutional cron is disabled in personal mode, which is why deals and flows stopped on 2026-07-31; the nightly step now syncs bulk deals, **block deals (new)** and the FII/DII report. NSE's dated bulk archive returns 404 and its API blocks scripts, so Aug–Nov 2026 needs a manual CSV import; the FII/DII request times out.
+
+Most raw bulk "buys" in liquid stocks come from high-frequency and proprietary desks (Graviton, HRTI, XTX…), so only long-only institutions were counted. Primary F2 (active funds): test −0.90% per trade, day-clustered −1.07%, 0 of 3 test years positive, portfolio −10.5% CAGR. Against the control group these stocks did **worse** than the average stock by about 1–1.6% over 10 sessions in **both** periods. A likely reason: a fund's bulk buy is often the other side of a large seller exiting (promoter or private equity), and that supply keeps weighing on the price. That is a reason to be careful after such deals, not a long setup.
+
 **Stopping rule (agreed in advance):** if Phases 1–4 all fail, prediction work stops and SwingDesk becomes a discipline and journaling tool (sizing, stops, journal, paper record). This prevents endless searching, which is itself a source of false discoveries (A2).
 
 **Honest expectation:** no guarantee. A realistic success is a small positive average edge across many trades with controlled drawdown, not +5% every week.
