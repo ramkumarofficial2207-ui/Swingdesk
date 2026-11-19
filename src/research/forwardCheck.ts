@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import prisma from '../prismaClient';
 import { loadAdjustedDailySeries } from '../adjustedCandles';
@@ -47,11 +47,27 @@ async function topUniverse(date: string): Promise<string[]> {
     return rows.map(row => row.symbol);
 }
 
+export const FORWARD_DIR = join('reports', 'forward-checks');
+
+/** Frozen lists live in reports/forward-checks/ (the first one, 2026-11-19, was committed to reports/). */
 function path(date: string, ext: string): string {
-    return join('reports', `forward-check-${date}.${ext}`);
+    const legacy = join('reports', `forward-check-${date}.${ext}`);
+    return existsSync(legacy) ? legacy : join(FORWARD_DIR, `forward-check-${date}.${ext}`);
 }
 
-async function make(date: string): Promise<void> {
+export function isFrozen(date: string): boolean {
+    return existsSync(path(date, 'json'));
+}
+
+export function frozenDates(): string[] {
+    const fromDir = existsSync(FORWARD_DIR) ? readdirSync(FORWARD_DIR) : [];
+    const names = [...fromDir, ...readdirSync('reports')];
+    return [...new Set(names.map(name => /^forward-check-(d{4}-d{2}-d{2}).json$/.exec(name)?.[1]).filter((d): d is string => !!d))].sort();
+}
+
+/** Freeze the picks at a close. Never overwrites an existing frozen list. */
+export async function make(date: string): Promise<void> {
+    if (isFrozen(date)) { console.log(`[Forward] ${date} already frozen; not overwriting.`); await check(date); return; }
     const universe = await topUniverse(date);
     const lists: Record<string, string[]> = { dip: [], surge: [] };
     for (const symbol of universe) {
@@ -63,13 +79,13 @@ async function make(date: string): Promise<void> {
         if (clues?.vol2 && clues.up3 && clues.strongClose) lists.surge.push(symbol);
     }
     const frozen: Frozen = { signalDate: date, createdAt: new Date().toISOString(), lists, universe };
-    mkdirSync('reports', { recursive: true });
+    mkdirSync(FORWARD_DIR, { recursive: true });
     writeFileSync(path(date, 'json'), JSON.stringify(frozen, null, 2));
     console.log(`[Forward] Froze picks for ${date}: dip ${lists.dip.length}, surge ${lists.surge.length}, universe ${universe.length}.`);
     await check(date);
 }
 
-async function check(date: string): Promise<void> {
+export async function check(date: string): Promise<void> {
     if (!existsSync(path(date, 'json'))) throw new Error(`No frozen list for ${date}; run --make first.`);
     const frozen: Frozen = JSON.parse(readFileSync(path(date, 'json'), 'utf8'));
     const result = (bars: PriceBar[], k: number): number | null => {

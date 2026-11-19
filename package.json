@@ -45,7 +45,8 @@
         "research:uptrend-dip": "node --max-old-space-size=6144 -r ts-node/register/transpile-only src/research/runUptrendDip.ts",
         "research:forward-check": "node --max-old-space-size=4096 -r ts-node/register/transpile-only src/research/forwardCheck.ts",
         "research:harness-check": "node --max-old-space-size=6144 -r ts-node/register/transpile-only src/research/cards/uptrendDipCheck.ts",
-        "data:freshness": "ts-node --transpile-only src/dataFreshness.ts"
+        "data:freshness": "ts-node --transpile-only src/dataFreshness.ts",
+        "nightly:research": "node --max-old-space-size=4096 -r ts-node/register/transpile-only src/nightlyResearch.ts"
     },
     "dependencies": {
         "@anthropic-ai/sdk": "^0.78.0",
