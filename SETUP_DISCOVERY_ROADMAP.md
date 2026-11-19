@@ -134,6 +134,21 @@ A desk of agents, each with one job. Agents **propose and run**; the human appro
 
 Mover-review runs weekly from Phase 0 onward and adds hypotheses to the queue.
 
+### Phase 0 status (2026-11-19, branch `feature/phase0-foundation`)
+
+| Item | Status |
+|---|---|
+| Evaluation harness v3 (`src/research/harness.ts`, `studyRunner.ts`; setup cards in `src/research/cards/`) | ✅ Done. Re-run of the uptrend dip reproduces FAIL; portfolio view: +40.6% CAGR in discovery, −22.8% CAGR with a 60% drawdown in test ([report](reports/harness-check-uptrend-dip.md)). |
+| Trial registry (`reports/trial-registry.json`) | ✅ Backfilled with all 8 studies so far (the scanner replay alone covered 21 setup types) |
+| Untradeable-day handling (suspension, single locked price) | ✅ In the harness |
+| ML replay look-ahead | ✅ Fixed: close-confirmed trigger, next-open fill |
+| Data freshness monitor (`npm run data:freshness`) | ✅ Done. Found bulk/block deals, institutional flow snapshot and FII/DII flows all stale since 2026-07-31. |
+| Nightly forward check after the post-market scan (`npm run nightly:research`) | ✅ Done |
+| Merge `research/next-day-movers` and this branch via PR | ⏳ Waiting for approval |
+| Review the 57 Dependabot alerts on `main` | ⏳ Not started |
+| Weekly mover-review agent | ⏳ Next, alongside Phase 1 |
+| Industry labels for stocks no longer in the Nifty 500 | ⚠️ Limitation: they count as their own sector, so the sector cap can't group them |
+
 **Stopping rule (agreed in advance):** if Phases 1–4 all fail, prediction work stops and SwingDesk becomes a discipline and journaling tool (sizing, stops, journal, paper record). This prevents endless searching, which is itself a source of false discoveries (A2).
 
 **Honest expectation:** no guarantee. A realistic success is a small positive average edge across many trades with controlled drawdown, not +5% every week.
