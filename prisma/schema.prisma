@@ -384,6 +384,8 @@ model MarketInstrument {
 model DailyCandle {
   symbol        String
   tradingDate   DateTime @db.Date
+  /// NSE series: EQ, BE/BZ (trade-to-trade) or INDEX.
+  series        String   @default("EQ")
   open          Float
   high          Float
   low           Float

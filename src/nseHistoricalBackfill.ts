@@ -50,6 +50,8 @@ interface CliOptions {
     archiveDir: string;
     importToDatabase: boolean;
     force: boolean;
+    /** Re-import only trade-to-trade (BE/BZ) rows for dates already imported. */
+    tradeToTradeOnly: boolean;
 }
 
 interface DayArtifacts {
@@ -109,6 +111,7 @@ function parseArgs(argv: string[]): CliOptions {
         archiveDir: path.resolve(values.get('archive-dir') ?? DEFAULT_ARCHIVE_DIR),
         importToDatabase,
         force: flags.has('force'),
+        tradeToTradeOnly: flags.has('trade-to-trade-only'),
     };
 }
 
@@ -206,8 +209,32 @@ async function readOrDownload(filePath: string, url: string, optional = false): 
     return data;
 }
 
+/**
+ * Backfill for the BE/BZ series that older imports dropped: reads the archived
+ * Bhavcopy only (never downloads) and upserts just the non-EQ rows, leaving
+ * the date's manifest entry unchanged.
+ */
+async function importTradeToTrade(options: CliOptions, previous: ManifestEntry | undefined, tradingDate: string): Promise<ProcessResult> {
+    const unchanged = { dateKey: tradingDate, entry: previous ?? { status: 'NON_TRADING_DAY' as const, updatedAt: new Date().toISOString() } };
+    if (previous?.status !== 'IMPORTED' && previous?.status !== 'DOWNLOADED') return unchanged;
+    const artifacts = artifactsFor(options.archiveDir, tradingDate);
+    if (!(await existsWithData(artifacts.bhavPath))) {
+        tradeToTradeMissingArchives.push(tradingDate);
+        return unchanged;
+    }
+    const delivery = (await existsWithData(artifacts.deliveryPath)) ? (await fs.readFile(artifacts.deliveryPath)).toString('utf8') : null;
+    const records = parseEquityArchive(await fs.readFile(artifacts.bhavPath), artifacts, delivery).filter(record => record.series !== 'EQ');
+    if (options.importToDatabase && records.length) await upsertNseRecords(records, { historical: true });
+    tradeToTradeRows += records.length;
+    return unchanged;
+}
+
+let tradeToTradeRows = 0;
+const tradeToTradeMissingArchives: string[] = [];
+
 async function processDate(options: CliOptions, manifest: Manifest, tradingDate: string): Promise<ProcessResult> {
     const previous = manifest.dates[tradingDate];
+    if (options.tradeToTradeOnly) return importTradeToTrade(options, previous, tradingDate);
     if (!options.force && previous?.status === 'NON_TRADING_DAY') {
         return { dateKey: tradingDate, entry: previous };
     }
@@ -295,9 +322,9 @@ async function main(): Promise<void> {
     for (let index = 0; index < dates.length; index += options.concurrency) {
         const batch = dates.slice(index, index + options.concurrency);
         const results = await Promise.all(batch.map(item => processDate(options, manifest, item)));
-        for (const result of results) manifest.dates[result.dateKey] = result.entry;
+        if (!options.tradeToTradeOnly) for (const result of results) manifest.dates[result.dateKey] = result.entry;
         processed += results.length;
-        await saveManifest(manifestPath, manifest);
+        if (!options.tradeToTradeOnly) await saveManifest(manifestPath, manifest);
         if (processed % 24 === 0 || processed === dates.length) {
             const selected = dates.map(item => manifest.dates[item]).filter(Boolean);
             const downloaded = selected.filter(item => item.status === 'DOWNLOADED' || item.status === 'IMPORTED').length;
@@ -311,6 +338,7 @@ async function main(): Promise<void> {
     const downloaded = selected.filter(item => item.status === 'DOWNLOADED' || item.status === 'IMPORTED').length;
     const imported = selected.filter(item => item.status === 'IMPORTED').length;
     const failed = selected.filter(item => item.status === 'FAILED');
+    if (options.tradeToTradeOnly) console.log(`[NSE] Trade-to-trade (BE/BZ) rows ${options.importToDatabase ? 'imported' : 'found'}: ${tradeToTradeRows}; dates without an archived Bhavcopy: ${tradeToTradeMissingArchives.length}${tradeToTradeMissingArchives.length ? ` (first: ${tradeToTradeMissingArchives.slice(0, 5).join(', ')})` : ''}`);
     console.log(`[NSE] Complete: ${downloaded} trading days downloaded; ${imported} imported; ${failed.length} failed.`);
     if (failed.length) {
         console.log(`[NSE] Re-run the same command to retry failed dates. First failures: ${failed.slice(0, 5).map(item => item.error).join(' | ')}`);
