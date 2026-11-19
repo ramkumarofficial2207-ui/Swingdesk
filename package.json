@@ -51,7 +51,8 @@
         "data:global": "ts-node --transpile-only src/globalMarketBackfill.ts",
         "research:global-cues": "node --max-old-space-size=8192 -r ts-node/register/transpile-only src/research/cards/globalCues.ts",
         "research:institutional-buys": "node --max-old-space-size=8192 -r ts-node/register/transpile-only src/research/cards/institutionalBuys.ts",
-        "research:monthly-momentum": "node --max-old-space-size=8192 -r ts-node/register/transpile-only src/research/cards/monthlyMomentum.ts"
+        "research:monthly-momentum": "node --max-old-space-size=8192 -r ts-node/register/transpile-only src/research/cards/monthlyMomentum.ts",
+        "research:score-live-setups": "node --max-old-space-size=6144 -r ts-node/register/transpile-only src/research/scoreLiveSetups.ts"
     },
     "dependencies": {
         "@anthropic-ai/sdk": "^0.78.0",
