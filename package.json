@@ -41,7 +41,8 @@
         "backtest:presurge-v4:run": "ts-node --transpile-only src/preSurgeV4IntradayBacktest.ts",
         "backtest:sample": "cross-env BACKTEST_UNIVERSE_MODE=sample ts-node --transpile-only backtest.ts",
         "backtest:universe": "cross-env BACKTEST_UNIVERSE_MODE=broad_india BACKTEST_UNIVERSE_ONLY=1 ts-node --transpile-only backtest.ts",
-        "research:next-day-clues": "node --max-old-space-size=6144 -r ts-node/register/transpile-only src/research/nextDayClues.ts"
+        "research:next-day-clues": "node --max-old-space-size=6144 -r ts-node/register/transpile-only src/research/nextDayClues.ts",
+        "research:uptrend-dip": "node --max-old-space-size=6144 -r ts-node/register/transpile-only src/research/runUptrendDip.ts"
     },
     "dependencies": {
         "@anthropic-ai/sdk": "^0.78.0",
