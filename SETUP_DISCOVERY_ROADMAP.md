@@ -176,6 +176,12 @@ Most raw bulk "buys" in liquid stocks come from high-frequency and proprietary d
 
 Unlike every earlier study, the direction held in both periods and against the control. What is missing is **certainty and a tolerable drawdown**, not an edge in the average. Under A4, the only honest next evidence is **new live months**, never a re-tune on 2021–26.
 
+### Live check (2026-11-19): the scanner's own live picks, Aug–Oct 2026 ❌
+
+[Report](reports/live-setups-scoring.md). The old Railway production database was backed up (local CSV, git-ignored) and its 354 live-recorded setups were scored with rules committed beforehand. Buying at the next open and holding 5 sessions: **−1.53% per trade** (301 trades), 0.47% worse than the average stock on the same days. The app's own plan with a close-confirmed trigger: **−5.22% per trade** (46 trades). Live evidence agrees with the backtests: the scanner's setup types have no edge.
+
+The backup also holds bulk deals (to 2026-10-15) and FII/DII flows (to 2026-10-15) that fill most of the Aug–Oct gap; not imported yet. Delivery % turned out to be already complete locally for 2020–26 (an untested clue).
+
 **Stopping rule (agreed in advance):** if Phases 1–4 all fail, prediction work stops and SwingDesk becomes a discipline and journaling tool (sizing, stops, journal, paper record). This prevents endless searching, which is itself a source of false discoveries (A2).
 
 **Honest expectation:** no guarantee. A realistic success is a small positive average edge across many trades with controlled drawdown, not +5% every week.
