@@ -476,6 +476,22 @@ model PaperSignal {
   @@index([setupType, state])
 }
 
+/// Board meetings that consider financial results, from NSE's board-meeting
+/// history. The meeting date is when results are approved and usually released.
+model ResultsEvent {
+  id          String    @id @default(uuid()) @db.Uuid
+  symbol      String
+  meetingDate DateTime  @db.Date
+  purpose     String
+  /// When the company informed the exchange of the meeting (known in advance).
+  intimatedAt DateTime?
+  source      String    @default("NSE_BOARD_MEETINGS")
+  createdAt   DateTime  @default(now())
+
+  @@unique([symbol, meetingDate])
+  @@index([meetingDate])
+}
+
 model EodIngestionRun {
   id                       String    @id @default(uuid()) @db.Uuid
   tradingDate              DateTime  @unique @db.Date
@@ -749,4 +765,24 @@ model SignalLabsAlert {
 
   @@index([symbol, alertDate])
   @@map("signal_labs_alerts")
+}
+
+/// Daily global market and commodity closes (SETUP_DISCOVERY_ROADMAP.md Phase 2).
+/// `date` is the trading date in the series' own exchange time zone; a US
+/// close dated D is known before India's open on the next Indian session.
+model GlobalMarketDaily {
+  id        String   @id @default(uuid()) @db.Uuid
+  series    String // COPPER | BRENT | USDINR | NASDAQ | SP500 | GOLD
+  ticker    String
+  date      DateTime @db.Date
+  open      Float?
+  high      Float?
+  low       Float?
+  close     Float
+  source    String   @default("YAHOO_CHART")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([series, date])
+  @@index([date])
 }

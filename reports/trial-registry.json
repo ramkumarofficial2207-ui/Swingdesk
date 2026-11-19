@@ -1,0 +1,246 @@
+[
+  {
+    "id": "setup-evidence-v2",
+    "name": "Scanner setup types replayed with app levels (21 types)",
+    "plan": "setup-trust-rules.md",
+    "kind": "pre-registered",
+    "discovery": null,
+    "test": null,
+    "verdict": "FAIL",
+    "note": "21 setup types; 0 trusted, 0 on trial. Counts as 21 ideas. Units: R.",
+    "ranAt": "2026-11-19T00:00:00.000Z"
+  },
+  {
+    "id": "five-percent-study",
+    "name": "Fixed +5%/-2.5% with forward-selected conditions",
+    "plan": "five-percent-study.md",
+    "kind": "pre-registered",
+    "discovery": {
+      "n": 546,
+      "avg": 0.207,
+      "dayClustered": null
+    },
+    "test": {
+      "n": 365,
+      "avg": -0.387,
+      "dayClustered": null
+    },
+    "verdict": "FAIL",
+    "note": "Units: R. Conditions chosen by greedy search on discovery.",
+    "ranAt": "2026-11-19T00:00:00.000Z"
+  },
+  {
+    "id": "volatility-exit-study",
+    "name": "ATR-scaled exits, 4 designs x condition search",
+    "plan": "volatility-exit-study-plan.md",
+    "kind": "pre-registered",
+    "discovery": {
+      "n": 301,
+      "avg": 0.224,
+      "dayClustered": null
+    },
+    "test": {
+      "n": 274,
+      "avg": null,
+      "dayClustered": null
+    },
+    "verdict": "FAIL",
+    "note": "Units: R. Primary Design D; see report for test numbers.",
+    "ranAt": "2026-11-19T00:00:00.000Z"
+  },
+  {
+    "id": "momentum-pullback",
+    "name": "Momentum leader pullback and resumption",
+    "plan": "momentum-pullback-plan.md",
+    "kind": "pre-registered",
+    "discovery": {
+      "n": 400,
+      "avg": 0.06,
+      "dayClustered": null
+    },
+    "test": {
+      "n": 482,
+      "avg": -0.109,
+      "dayClustered": null
+    },
+    "verdict": "FAIL",
+    "note": "Units: R. Primary P1.",
+    "ranAt": "2026-11-19T00:00:00.000Z"
+  },
+  {
+    "id": "post-results-drift",
+    "name": "Post-results drift (D2, above 50-day before event)",
+    "plan": "post-results-drift-plan.md",
+    "kind": "pre-registered",
+    "discovery": {
+      "n": 326,
+      "avg": 0.32,
+      "dayClustered": null
+    },
+    "test": {
+      "n": 394,
+      "avg": -0.015,
+      "dayClustered": null
+    },
+    "verdict": "FAIL",
+    "note": "Units: R.",
+    "ranAt": "2026-11-19T00:00:00.000Z"
+  },
+  {
+    "id": "next-day-clues-discovery",
+    "name": "Next-day clue scan, 16 clues + 9 combinations (discovery only)",
+    "plan": "next-day-clues-discovery.md",
+    "kind": "exploration",
+    "discovery": null,
+    "test": null,
+    "verdict": "EXPLORATION",
+    "note": "25 looks. Led to the uptrend dip study.",
+    "ranAt": "2026-11-19T00:00:00.000Z"
+  },
+  {
+    "id": "uptrend-dip",
+    "name": "Uptrend dip (U1 hold 5 sessions, all signals)",
+    "plan": "uptrend-dip-plan.md",
+    "kind": "pre-registered",
+    "discovery": {
+      "n": 3153,
+      "avg": 0.54,
+      "dayClustered": 0.38
+    },
+    "test": {
+      "n": 2874,
+      "avg": 0.53,
+      "dayClustered": -0.58
+    },
+    "verdict": "FAIL",
+    "note": "Units: net %. Failed day-clustered rule.",
+    "ranAt": "2026-11-19T00:00:00.000Z"
+  },
+  {
+    "id": "harness-check-uptrend-dip",
+    "name": "Harness check: uptrend dip (U1) under trader rules",
+    "plan": "uptrend-dip-plan.md",
+    "ranAt": "2026-11-19T14:47:52.852Z",
+    "kind": "harness-check",
+    "discovery": {
+      "n": 567,
+      "avg": 0.9751415174624012,
+      "dayClustered": 0.9565480193632441
+    },
+    "test": {
+      "n": 491,
+      "avg": -0.5965207549537241,
+      "dayClustered": -0.5853840794680006
+    },
+    "verdict": "FAIL",
+    "note": "Re-run of a failed study to validate the harness; ranking by dip depth was added for the top-N rule."
+  },
+  {
+    "id": "sector-momentum-s1",
+    "name": "Sector momentum S1 (no market filter)",
+    "plan": "sector-momentum-plan.md",
+    "ranAt": "2026-11-19T14:58:27.224Z",
+    "kind": "pre-registered",
+    "discovery": {
+      "n": 518,
+      "avg": 0.09703235905291943,
+      "dayClustered": 0.09084487811635263
+    },
+    "test": {
+      "n": 574,
+      "avg": -0.296193359991955,
+      "dayClustered": -0.11516065084295343
+    },
+    "verdict": "FAIL"
+  },
+  {
+    "id": "sector-momentum-s2",
+    "name": "Sector momentum S2 (NIFTY above 50-day average)",
+    "plan": "sector-momentum-plan.md",
+    "ranAt": "2026-11-19T15:00:18.583Z",
+    "kind": "pre-registered",
+    "discovery": {
+      "n": 345,
+      "avg": 0.28172888170505594,
+      "dayClustered": 0.3123113633107262
+    },
+    "test": {
+      "n": 379,
+      "avg": -0.5683305926342604,
+      "dayClustered": -0.5382716754065427
+    },
+    "verdict": "FAIL"
+  },
+  {
+    "id": "global-cues-g1",
+    "name": "Global and commodity cues G1 (|z| ≥ 1.5)",
+    "plan": "global-cues-plan.md",
+    "ranAt": "2026-11-19T15:08:00.657Z",
+    "kind": "pre-registered",
+    "discovery": {
+      "n": 331,
+      "avg": -0.1810365981962034,
+      "dayClustered": -0.19633276142079414
+    },
+    "test": {
+      "n": 326,
+      "avg": -0.10556915488560634,
+      "dayClustered": -0.3795968857251191
+    },
+    "verdict": "FAIL"
+  },
+  {
+    "id": "global-cues-g2",
+    "name": "Global and commodity cues G2 (|z| ≥ 2.0)",
+    "plan": "global-cues-plan.md",
+    "ranAt": "2026-11-19T15:09:00.962Z",
+    "kind": "pre-registered",
+    "discovery": {
+      "n": 207,
+      "avg": -0.19248031971670126,
+      "dayClustered": -0.21894371847193494
+    },
+    "test": {
+      "n": 223,
+      "avg": -0.06893779322314716,
+      "dayClustered": -0.2738899035987442
+    },
+    "verdict": "FAIL"
+  },
+  {
+    "id": "institutional-buys-f1",
+    "name": "Institutional bulk buys F1 (all institutions)",
+    "plan": "institutional-buys-plan.md",
+    "ranAt": "2026-11-19T15:18:27.924Z",
+    "kind": "pre-registered",
+    "discovery": {
+      "n": 137,
+      "avg": -0.9787092080399526,
+      "dayClustered": -1.1115677842362222
+    },
+    "test": {
+      "n": 157,
+      "avg": -1.425404576283144,
+      "dayClustered": -1.2917941019526389
+    },
+    "verdict": "FAIL"
+  },
+  {
+    "id": "institutional-buys-f2",
+    "name": "Institutional bulk buys F2 (active funds only)",
+    "plan": "institutional-buys-plan.md",
+    "ranAt": "2026-11-19T15:19:28.092Z",
+    "kind": "pre-registered",
+    "discovery": {
+      "n": 123,
+      "avg": -0.752589153445736,
+      "dayClustered": -0.9511019133281221
+    },
+    "test": {
+      "n": 152,
+      "avg": -0.8973237608119958,
+      "dayClustered": -1.0680936005892099
+    },
+    "verdict": "FAIL"
+  }
+]

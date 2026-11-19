@@ -182,6 +182,39 @@ export async function syncNseDailyBulkDeals(): Promise<{ success: boolean; count
   }
 }
 
+/**
+ * Fetch today's NSE block deals (archives block.csv) and store them in
+ * InstitutionalDeal with remarks = 'BLOCK', so they never mix with bulk deals.
+ * NSE offers no dated archive for past days, so history starts when this runs.
+ */
+export async function syncNseDailyBlockDeals(): Promise<{ success: boolean; count: number; date?: string; message?: string }> {
+  try {
+    const response = await axios.get('https://archives.nseindia.com/content/equities/block.csv', {
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36', 'Accept': '*/*' },
+      timeout: 10000,
+    });
+    const deals = parseNseBulkDealsCsv(String(response.data ?? '')).map(deal => ({ ...deal, remarks: 'BLOCK' }));
+    let inserted = 0;
+    for (const deal of deals) {
+      const existing = await prisma.institutionalDeal.findFirst({
+        where: { symbol: deal.symbol, clientName: deal.clientName, quantity: deal.quantity, dealType: deal.dealType, tradeDate: deal.tradeDate, remarks: 'BLOCK' },
+      });
+      if (existing) continue;
+      await prisma.institutionalDeal.create({
+        data: {
+          symbol: deal.symbol, companyName: deal.companyName, clientName: deal.clientName, entityType: deal.entityType,
+          dealType: deal.dealType, quantity: deal.quantity, price: deal.price, totalValue: deal.totalValueCr, remarks: 'BLOCK', tradeDate: deal.tradeDate,
+        },
+      });
+      inserted += 1;
+    }
+    const date = deals[0]?.tradeDate.toISOString().slice(0, 10);
+    return { success: true, count: inserted, date, message: `Synced ${inserted} block deals.` };
+  } catch (error: any) {
+    return { success: false, count: 0, message: error.message };
+  }
+}
+
 // ─── HISTORICAL BACKFILL ────────────────────────────────────────────────────
 
 const NSE_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];

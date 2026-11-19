@@ -1,15 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import { deterministicUuid, resolveHistoricalOutcome } from '../src/mlHistoricalReplay';
 
-function row(date: string, high: number, low: number, volume = 100): any {
+interface Bar { high: number; low: number; open?: number; close?: number; volume?: number }
+
+function row(date: string, bar: Bar): any {
+    const mid = (bar.high + bar.low) / 2;
     return {
         symbol: 'TEST',
         tradingDate: new Date(`${date}T00:00:00.000Z`),
-        open: (high + low) / 2,
-        high,
-        low,
-        close: (high + low) / 2,
-        volume: BigInt(volume),
+        open: bar.open ?? mid,
+        high: bar.high,
+        low: bar.low,
+        close: bar.close ?? mid,
+        volume: BigInt(bar.volume ?? 100),
         turnoverCr: 10,
         totalTrades: 1_000,
         deliveryQty: null,
@@ -17,12 +20,14 @@ function row(date: string, high: number, low: number, volume = 100): any {
     };
 }
 
-function history(future: Array<{ high: number; low: number; volume?: number }>): any[] {
-    const rows = Array.from({ length: 25 }, (_, index) => row(`2023-01-${String(index + 1).padStart(2, '0')}`, 99, 95, 100));
-    future.forEach((value, index) => rows.push(row(`2023-02-${String(index + 1).padStart(2, '0')}`, value.high, value.low, value.volume ?? 100)));
-    while (rows.length < 55) rows.push(row(`2023-03-${String(rows.length - 24).padStart(2, '0')}`, 102, 98, 100));
+function history(future: Bar[]): any[] {
+    const rows = Array.from({ length: 25 }, (_, index) => row(`2023-01-${String(index + 1).padStart(2, '0')}`, { high: 99, low: 95 }));
+    future.forEach((value, index) => rows.push(row(`2023-02-${String(index + 1).padStart(2, '0')}`, value)));
+    while (rows.length < 55) rows.push(row(`2023-03-${String(rows.length - 24).padStart(2, '0')}`, { high: 102, low: 98 }));
     return rows;
 }
+
+const plan = { signalIndex: 24, entryPrice: 100, stopLoss: 95, targetPrice: 110, triggerWindow: 5, outcomeWindow: 20 };
 
 describe('historical ML replay', () => {
     it('creates stable UUIDs for idempotent replay writes', () => {
@@ -31,58 +36,61 @@ describe('historical ML replay', () => {
         expect(first).toMatch(/^[0-9a-f-]{36}$/);
     });
 
-    it('labels a volume-confirmed trigger that reaches target as WON', () => {
+    it('triggers on a volume-confirmed close above entry and fills at the next open', () => {
         const rows = history([
-            { high: 101, low: 99, volume: 200 },
-            { high: 112, low: 101, volume: 120 },
+            { high: 102, low: 99, close: 101, volume: 200 },
+            { open: 101, high: 112, low: 100, volume: 120 },
         ]);
-        const result = resolveHistoricalOutcome({
-            rows,
-            signalIndex: 24,
-            entryPrice: 100,
-            stopLoss: 95,
-            targetPrice: 110,
-            triggerWindow: 5,
-            outcomeWindow: 20,
-        });
+        const result = resolveHistoricalOutcome({ rows, ...plan });
         expect(result).toMatchObject({
             outcome: 'WON',
-            rMultiple: 2,
+            rMultiple: 1.5, // (110 − 101) / (101 − 95)
             triggered: true,
             triggeredAt: '2023-02-01',
             daysToTrigger: 1,
             postTriggerOutcome: 'WON',
             timeExit: false,
         });
-        expect(result?.maximumR).toBeGreaterThanOrEqual(2);
+    });
+
+    it('does not trigger on an intraday high that closes back below entry (old look-ahead case)', () => {
+        const rows = history([
+            { high: 103, low: 98, close: 99, volume: 300 },
+            ...Array.from({ length: 4 }, () => ({ high: 99, low: 96 })),
+        ]);
+        expect(resolveHistoricalOutcome({ rows, ...plan })).toMatchObject({ outcome: 'EXPIRED', triggered: false });
     });
 
     it('resolves same-bar target and stop ambiguity conservatively as LOST', () => {
-        const rows = history([{ high: 112, low: 94, volume: 200 }]);
-        const result = resolveHistoricalOutcome({
-            rows,
-            signalIndex: 24,
-            entryPrice: 100,
-            stopLoss: 95,
-            targetPrice: 110,
-            triggerWindow: 5,
-            outcomeWindow: 20,
-        });
-        expect(result).toMatchObject({ outcome: 'LOST', rMultiple: -1, triggered: true, postTriggerOutcome: 'LOST' });
+        const rows = history([
+            { high: 101, low: 99, close: 100, volume: 200 },
+            { open: 100, high: 112, low: 94 },
+        ]);
+        expect(resolveHistoricalOutcome({ rows, ...plan })).toMatchObject({ outcome: 'LOST', rMultiple: -1, triggered: true, postTriggerOutcome: 'LOST' });
+    });
+
+    it('takes a gap below the stop as a loss at the open', () => {
+        const rows = history([
+            { high: 101, low: 99, close: 100, volume: 200 },
+            { open: 100, high: 101, low: 99 },
+            { open: 90, high: 92, low: 88 },
+        ]);
+        const result = resolveHistoricalOutcome({ rows, ...plan })!;
+        expect(result.outcome).toBe('LOST');
+        expect(result.rMultiple).toBe(-2); // (90 − 100) / (100 − 95)
+    });
+
+    it('skips a fill that opens above the target as a chase', () => {
+        const rows = history([
+            { high: 101, low: 99, close: 100, volume: 200 },
+            { open: 111, high: 113, low: 110 },
+        ]);
+        expect(resolveHistoricalOutcome({ rows, ...plan })).toMatchObject({ outcome: 'EXPIRED', triggered: false });
     });
 
     it('labels a setup without price and volume confirmation as EXPIRED', () => {
         const rows = history(Array.from({ length: 5 }, () => ({ high: 99, low: 96, volume: 200 })));
-        const result = resolveHistoricalOutcome({
-            rows,
-            signalIndex: 24,
-            entryPrice: 100,
-            stopLoss: 95,
-            targetPrice: 110,
-            triggerWindow: 5,
-            outcomeWindow: 20,
-        });
-        expect(result).toMatchObject({
+        expect(resolveHistoricalOutcome({ rows, ...plan })).toMatchObject({
             outcome: 'EXPIRED',
             triggered: false,
             triggeredAt: null,
@@ -94,18 +102,10 @@ describe('historical ML replay', () => {
 
     it('separates a triggered time exit from a setup that never triggered', () => {
         const rows = history([
-            { high: 101, low: 99, volume: 200 },
-            ...Array.from({ length: 20 }, () => ({ high: 104, low: 97, volume: 100 })),
+            { high: 101, low: 99, close: 100, volume: 200 },
+            ...Array.from({ length: 20 }, () => ({ open: 100, high: 104, low: 97 })),
         ]);
-        const result = resolveHistoricalOutcome({
-            rows,
-            signalIndex: 24,
-            entryPrice: 100,
-            stopLoss: 95,
-            targetPrice: 110,
-            triggerWindow: 5,
-            outcomeWindow: 20,
-        });
+        const result = resolveHistoricalOutcome({ rows, ...plan });
         expect(result).toMatchObject({
             outcome: 'EXPIRED',
             triggered: true,

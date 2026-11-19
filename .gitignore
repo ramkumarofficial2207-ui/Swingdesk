@@ -63,3 +63,6 @@ Thumbs.db
 /.git_broken_shell/
 /reports/swingdesk-ui/
 /python_ml/artifacts/*.cbm
+
+# Nightly forward paper checks (generated)
+reports/forward-checks/

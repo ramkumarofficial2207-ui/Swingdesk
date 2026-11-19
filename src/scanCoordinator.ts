@@ -1,5 +1,6 @@
 import { Prisma, ScanJob } from '@prisma/client';
 import { runPaperTracking } from './paperTracker';
+import { runNightlyResearch } from './nightlyResearch';
 import {
     addThinkingStep,
     clearThinkingSteps,
@@ -364,6 +365,11 @@ async function runJob(job: ScanJob, mode: ScanMode, trigger: ScanTrigger): Promi
             if (mode === 'swing') {
                 await runPaperTracking(scanPayload, job.id).catch(error => {
                     console.warn('[ScanCoordinator] Paper tracking failed:', error?.message || error);
+                });
+                // Freshness check + freeze/score forward paper lists. Runs in the
+                // background so a slow research step never delays the scan result.
+                void runNightlyResearch().catch(error => {
+                    console.warn('[ScanCoordinator] Nightly research failed:', error?.message || error);
                 });
             }
         }
