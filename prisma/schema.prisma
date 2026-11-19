@@ -476,6 +476,22 @@ model PaperSignal {
   @@index([setupType, state])
 }
 
+/// Board meetings that consider financial results, from NSE's board-meeting
+/// history. The meeting date is when results are approved and usually released.
+model ResultsEvent {
+  id          String    @id @default(uuid()) @db.Uuid
+  symbol      String
+  meetingDate DateTime  @db.Date
+  purpose     String
+  /// When the company informed the exchange of the meeting (known in advance).
+  intimatedAt DateTime?
+  source      String    @default("NSE_BOARD_MEETINGS")
+  createdAt   DateTime  @default(now())
+
+  @@unique([symbol, meetingDate])
+  @@index([meetingDate])
+}
+
 model EodIngestionRun {
   id                       String    @id @default(uuid()) @db.Uuid
   tradingDate              DateTime  @unique @db.Date
