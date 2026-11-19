@@ -146,6 +146,21 @@ model Trade {
   daysHeld Int?
   notes    String?
 
+  // Trade journal: the plan at entry (from the setup), and the review on close
+  plannedEntry      Float?
+  plannedStop       Float?
+  plannedTarget     Float?
+  entryReason       String?
+  emotionAtEntry    String? // CALM | CONFIDENT | ANXIOUS | FOMO | REVENGE
+  followedPlan      Boolean?
+  mistakes          String[]  @default([])
+  grade             String? // A | B | C
+  lesson            String?
+  reviewedAt        DateTime?
+  // Best and worst price while the trade was open (daily highs and lows)
+  maxFavorablePrice Float?
+  maxAdversePrice   Float?
+
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([status])

@@ -105,6 +105,11 @@ export const portfolioTradeSchema = z.object({
     regimeAtEntry: z.string().trim().max(40).optional(),
     confidenceScore: z.coerce.number().min(0).max(10).optional(),
     notes: z.string().trim().max(2000).optional(),
+    plannedEntry: z.coerce.number().positive().optional(),
+    plannedStop: z.coerce.number().positive().optional(),
+    plannedTarget: z.coerce.number().positive().optional(),
+    entryReason: z.string().trim().max(1000).optional(),
+    emotionAtEntry: z.enum(['CALM', 'CONFIDENT', 'ANXIOUS', 'FOMO', 'REVENGE']).optional(),
 }).superRefine((value, ctx) => {
     if (value.stopLossInit >= value.entryPrice) {
         ctx.addIssue({
@@ -128,6 +133,18 @@ export const portfolioTradeSchema = z.object({
         });
     }
 });
+
+export const journalReviewSchema = z.object({
+    entryReason: z.string().trim().max(1000).optional(),
+    emotionAtEntry: z.enum(['CALM', 'CONFIDENT', 'ANXIOUS', 'FOMO', 'REVENGE']).nullable().optional(),
+    followedPlan: z.boolean().nullable().optional(),
+    mistakes: z.array(z.enum([
+        'CHASED_ENTRY', 'MOVED_STOP', 'NO_STOP', 'EARLY_EXIT', 'LATE_EXIT', 'OVERSIZED',
+        'IGNORED_RESULTS_DATE', 'TRADED_AGAINST_MARKET', 'FOMO', 'REVENGE_TRADE',
+    ])).max(10).optional(),
+    grade: z.enum(['A', 'B', 'C']).nullable().optional(),
+    lesson: z.string().trim().max(2000).optional(),
+}).refine(value => Object.keys(value).length > 0, { message: 'Provide at least one review field.' });
 
 export const portfolioTradeUpdateSchema = z.object({
     exitPrice: z.coerce.number().positive().optional(),

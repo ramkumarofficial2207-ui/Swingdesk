@@ -1,0 +1,29 @@
+.sd-journal h1 svg{color:#3c7a5c}
+.sd-j-stats{display:grid;grid-template-columns:repeat(8,1fr);gap:4px;padding:16px 18px;margin-bottom:19px}
+.sd-j-stat span{display:block;font-size:9px;color:#94a095;margin-bottom:4px}
+.sd-j-stat strong{font-size:16px;font-weight:600;color:#3c5446;letter-spacing:-.3px}
+.sd-j-grid{display:grid;grid-template-columns:1.4fr 1fr;gap:19px;margin-bottom:19px}
+.sd-j-grid-3{grid-template-columns:repeat(3,1fr)}
+.sd-j-card{padding:18px 20px}
+.sd-j-card h3{font-size:12px;font-weight:650;margin-bottom:12px!important;color:#3c5446}
+.sd-j-insights ul{margin:0;padding-left:16px}
+.sd-j-insights li{font-size:11px;line-height:1.7;color:#5f7166;margin:6px 0}
+.sd-j-empty{font-size:11px;color:#9aa797;line-height:1.7}
+.sd-j-discipline{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.sd-j-discipline div{border:1px solid #e8eee3;border-radius:8px;padding:12px;background:#fbfcfa}
+.sd-j-discipline span{display:block;font-size:9px;color:#94a095}
+.sd-j-discipline strong{display:block;font-size:20px;font-weight:650;margin:4px 0}
+.sd-j-discipline small{font-size:9px;color:#a0aa9b}
+.sd-j-card table td small{display:block}
+.sd-app .sd-j-review{font-size:9px;padding:5px 8px;gap:4px}
+.sd-j-dialog{width:min(560px,calc(100vw - 32px))}
+.sd-j-field{display:block;font-size:10px;color:#7e9272;margin-top:14px;border:0;padding:0}
+.sd-j-field legend{font-size:10px;color:#7e9272;padding:0}
+.sd-j-field textarea,.sd-j-field select{display:block;width:100%;border:1px solid #e0e8da;border-radius:6px;padding:9px 10px;margin-top:6px;color:#415f3d;background:#fafcf7;font:inherit;font-size:12px}
+.sd-j-row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.sd-j-choice,.sd-j-tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.sd-app .sd-j-choice button,.sd-app .sd-j-tags button{font-size:10px;padding:5px 10px;border-radius:999px;gap:4px}
+.sd-app .sd-j-choice button[aria-pressed=true],.sd-app .sd-j-tags button[aria-pressed=true]{background:#e6f2ea;border-color:#9fc9b0;color:#22694c;font-weight:600}
+@media(max-width:1220px){.sd-j-stats{grid-template-columns:repeat(4,1fr);row-gap:14px}.sd-j-grid-3{grid-template-columns:1fr 1fr}}
+@media(max-width:800px){.sd-j-grid,.sd-j-grid-3{grid-template-columns:1fr}}
+@media(max-width:560px){.sd-j-stats{grid-template-columns:repeat(2,1fr)}.sd-j-row{grid-template-columns:1fr}.sd-j-stat strong{font-size:15px}}

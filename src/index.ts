@@ -59,6 +59,7 @@ import {
 import { scanLimiter, chatLimiter, authLimiter, paymentLimiter } from './rateLimiter';
 import { requireSubscription } from './subscriptionMiddleware';
 import { createTrade, closeTrade, getPortfolioIntelligence, getPortfolioNewsRisk, getPortfolioSummary, updateOwnedTrade } from './portfolioService';
+import { getJournal, reviewTrade } from './journalService';
 import { sendBuyAlert, sendPreMarketDigest } from './whatsappAlert';
 import { notifyUsersWithMorningDigest, notifyUsersWithPostMarketSummary } from './notificationService';
 import {
@@ -97,6 +98,7 @@ import {
     deviceRegistrationSchema,
     loginSchema,
     newsImpactSchema,
+    journalReviewSchema,
     portfolioTradeSchema,
     portfolioTradeUpdateSchema,
     paymentVerificationSchema,
@@ -1941,6 +1943,25 @@ app.patch('/api/portfolio/trades/:id', requireAuth, validateBody(portfolioTradeU
     }
 });
 
+
+// Trade journal: plan vs actual, reviews and statistics.
+app.get('/api/journal', requireAuth, async (req: AuthRequest, res: Response) => {
+    try {
+        res.setHeader('Cache-Control', 'no-store');
+        res.json({ success: true, data: await getJournal(req.userId!) });
+    } catch (err: any) {
+        res.status(500).json({ success: false, message: sanitizeError(err) });
+    }
+});
+
+app.patch('/api/journal/trades/:id', requireAuth, validateBody(journalReviewSchema), async (req: AuthRequest, res: Response) => {
+    try {
+        const trade = await reviewTrade(req.userId!, req.params.id, req.body);
+        res.json({ success: true, data: trade });
+    } catch {
+        res.status(404).json({ success: false, message: 'Trade not found.' });
+    }
+});
 
 // REAL-TIME WEBSOCKET TICK STREAM (SSE Endpoint for UI)
 app.get('/api/stream/ticks', requireAuth, requireSubscription, async (req: Request, res: Response) => {

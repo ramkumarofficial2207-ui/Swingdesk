@@ -18,6 +18,11 @@ export interface CreateTradeInput {
     target1: number;
     target2?: number;
     notes?: string;
+    plannedEntry?: number;
+    plannedStop?: number;
+    plannedTarget?: number;
+    entryReason?: string;
+    emotionAtEntry?: string;
 }
 
 export interface CloseTrade {
@@ -127,6 +132,11 @@ export async function createTrade(userId: string, input: CreateTradeInput) {
             capitalDeployed,
             status: 'OPEN',
             notes: input.notes,
+            plannedEntry: input.plannedEntry,
+            plannedStop: input.plannedStop,
+            plannedTarget: input.plannedTarget,
+            entryReason: input.entryReason,
+            emotionAtEntry: input.emotionAtEntry,
         };
     if (userId !== PERSONAL_USER_ID) return prisma.trade.create({ data });
     // A serializable transaction prevents concurrent paper entries spending the same cash.
