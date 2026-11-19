@@ -39,6 +39,8 @@ export interface Candidate {
     /** Higher = better; used to rank candidates on the same day. */
     score: number;
     exit: ExitPlan;
+    /** Extra per-candidate values for a card's cross-sectional step (e.g. today's return). */
+    meta?: Record<string, number>;
 }
 
 export interface HarnessTrade {

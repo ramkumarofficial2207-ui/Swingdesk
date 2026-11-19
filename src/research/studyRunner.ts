@@ -3,7 +3,7 @@ import { join } from 'path';
 import prisma from '../prismaClient';
 import { loadAdjustedDailySeries } from '../adjustedCandles';
 import { PriceBar } from '../corporateActions';
-import { Candidate, DEFAULT_RULES, ExitPlan, HarnessRules, HarnessTrade, judge, selectTrades, simulatePortfolio, TradeStats, tradeStats } from './harness';
+import { Candidate, DEFAULT_RULES, ExitPlan, HarnessRules, HarnessTrade, judge, selectTrades, simulatePortfolio, simulateTrade, TradeStats, tradeStats } from './harness';
 import { computeSeriesIndicators, SeriesIndicators } from './momentumPullback';
 import { parseCsvLine } from './recentGainers';
 import { loadUniverse, TEST_START } from './studyData';
@@ -31,9 +31,33 @@ export interface SetupCard {
     testYears: string[];
     rules?: Partial<HarnessRules>;
     /** Signal at the close of bar i (data up to i only). Return null for no signal. */
-    signal: (bars: PriceBar[], ind: SeriesIndicators, i: number, ctx: SignalContext) => { score: number; exit: ExitPlan } | null;
+    signal: (bars: PriceBar[], ind: SeriesIndicators, i: number, ctx: SignalContext) => { score: number; exit: ExitPlan; meta?: Record<string, number> } | null;
     /** Optional cross-sectional step: adjust or filter a day's candidates (e.g. sector-level rules). */
     perDay?: (date: string, candidates: Candidate[]) => Candidate[];
+    /**
+     * Optional control group: every universe stock passing `include`, entered at the
+     * next open on each signal day with `exit`. Adds two pass rules: average excess
+     * and day-clustered excess vs the control must both be > 0 on the test period.
+     */
+    control?: { label: string; include: (ctx: SignalContext) => boolean; exit: ExitPlan };
+}
+
+export interface StudyResult {
+    passed: boolean;
+    trades: HarnessTrade[];
+    discovery: TradeStats;
+    test: TradeStats;
+    excess: { discovery: { avg: number; dayClustered: number }; test: { avg: number; dayClustered: number } } | null;
+}
+
+/** Average of each trade's excess over its signal day's control mean, overall and per day. */
+export function excessStats(trades: HarnessTrade[], controlMean: Map<string, number>): { avg: number; dayClustered: number } {
+    const rows = trades.filter(trade => controlMean.has(trade.signalDate)).map(trade => ({ date: trade.signalDate, x: trade.netPct - controlMean.get(trade.signalDate)! }));
+    if (!rows.length) return { avg: 0, dayClustered: 0 };
+    const byDay = new Map<string, number[]>();
+    for (const row of rows) { const list = byDay.get(row.date) ?? []; list.push(row.x); byDay.set(row.date, list); }
+    const dayMeans = [...byDay.values()].map(list => list.reduce((s, v) => s + v, 0) / list.length);
+    return { avg: rows.reduce((s, r) => s + r.x, 0) / rows.length, dayClustered: dayMeans.reduce((s, v) => s + v, 0) / dayMeans.length };
 }
 
 export interface RegistryEntry {
@@ -74,7 +98,7 @@ const statsRow = (label: string, s: TradeStats) => s.n
     : `| ${label} | 0 | — | — | — | — | — |`;
 const STATS_HEAD = '| Period | Trades | Signal days | Win rate | Avg net (95% range) | Day-clustered | Without best 5 days |\n|---|---:|---:|---:|---:|---:|---:|';
 
-export async function runSetupStudy(card: SetupCard, kind: RegistryEntry['kind'] = 'pre-registered', note?: string): Promise<{ passed: boolean; trades: HarnessTrade[] }> {
+export async function runSetupStudy(card: SetupCard, kind: RegistryEntry['kind'] = 'pre-registered', note?: string): Promise<StudyResult> {
     const rules: HarnessRules = { ...DEFAULT_RULES, ...card.rules };
     const universe = await loadUniverse();
     const industries = loadIndustries();
@@ -84,19 +108,21 @@ export async function runSetupStudy(card: SetupCard, kind: RegistryEntry['kind']
     const ctxBase = { marketUp: (date: string) => marketUpByDate.get(date) };
 
     const barsBySymbol = new Map<string, PriceBar[]>();
+    const controlSeries: Array<{ bars: PriceBar[]; at: Map<string, number>; eligible: Set<string> }> = [];
     let candidates: Candidate[] = [];
     for (const [symbol, eligible] of universe) {
         const bars = (await loadAdjustedDailySeries(symbol)).bars;
         if (bars.length < 60) continue;
         const ind = computeSeriesIndicators(bars);
         const industry = industries.get(symbol) ?? 'Unknown';
+        if (card.control?.include({ symbol, industry, ...ctxBase })) controlSeries.push({ bars, at: new Map(bars.map((bar, k) => [bar.date, k])), eligible });
         let used = false;
         for (let i = 50; i < bars.length - 1; i += 1) {
             const date = bars[i].date;
             if (date < card.discoveryStart || !eligible.has(date)) continue;
             const hit = card.signal(bars, ind, i, { symbol, industry, ...ctxBase });
             if (!hit) continue;
-            candidates.push({ symbol, industry, index: i, score: hit.score, exit: hit.exit });
+            candidates.push({ symbol, industry, index: i, score: hit.score, exit: hit.exit, meta: hit.meta });
             used = true;
         }
         if (used) barsBySymbol.set(symbol, bars);
@@ -123,6 +149,30 @@ export async function runSetupStudy(card: SetupCard, kind: RegistryEntry['kind']
     const portfolioTest = simulatePortfolio(testTrades, barsBySymbol, nifty, calendar, rules);
     const portfolioDiscovery = simulatePortfolio(discoveryTrades, barsBySymbol, nifty, calendar, rules);
     const verdict = judge(test, yearly, card.testYears, portfolioTest);
+    let excess: StudyResult['excess'] = null;
+    let controlLine = '';
+    if (card.control) {
+        const controlMean = new Map<string, number>();
+        const exit = card.control.exit;
+        for (const date of new Set(trades.map(trade => trade.signalDate))) {
+            const values: number[] = [];
+            for (const series of controlSeries) {
+                const k = series.at.get(date);
+                if (k === undefined || !series.eligible.has(date) || k + 1 >= series.bars.length) continue;
+                if (exit.maxGapUpPct !== undefined && series.bars[k + 1].open > series.bars[k].close * (1 + exit.maxGapUpPct / 100)) continue;
+                const result = simulateTrade(series.bars, k + 1, exit, rules.costBps);
+                if (result) values.push(result.netPct);
+            }
+            if (values.length) controlMean.set(date, values.reduce((s, v) => s + v, 0) / values.length);
+        }
+        excess = { discovery: excessStats(discoveryTrades, controlMean), test: excessStats(testTrades, controlMean) };
+        verdict.checks.push(
+            { rule: `Average excess vs control (${card.control.label}) above 0`, value: fmt(excess.test.avg), pass: excess.test.avg > 0 },
+            { rule: 'Day-clustered excess vs control above 0', value: fmt(excess.test.dayClustered), pass: excess.test.dayClustered > 0 },
+        );
+        verdict.passed = verdict.checks.every(check => check.pass);
+        controlLine = `Control group (${card.control.label}): excess per trade, discovery ${fmt(excess.discovery.avg)} (day-clustered ${fmt(excess.discovery.dayClustered)}); test ${fmt(excess.test.avg)} (day-clustered ${fmt(excess.test.dayClustered)}).`;
+    }
     const regime = (list: HarnessTrade[], up: boolean) => tradeStats(list.filter(trade => marketUpByDate.get(trade.signalDate) === up));
 
     const registry = recordTrial({
@@ -163,6 +213,7 @@ export async function runSetupStudy(card: SetupCard, kind: RegistryEntry['kind']
         statsRow('Discovery', discovery),
         statsRow('**Test**', test),
         '',
+        ...(controlLine ? [controlLine, ''] : []),
         '## Portfolio',
         '',
         '| Period | Dates | Net CAGR | Max drawdown | NIFTY 50 CAGR | NIFTY 50 max drawdown |',
@@ -189,7 +240,7 @@ export async function runSetupStudy(card: SetupCard, kind: RegistryEntry['kind']
     ];
     writeFileSync(join('reports', `${card.id}.md`), lines.join('\n'));
     console.log(`[Study] ${card.id}: test n=${test.n} avg=${fmt(test.avg)} day=${fmt(test.dayClustered)} → ${verdict.passed ? 'PASS' : 'FAIL'}`);
-    return { passed: verdict.passed, trades };
+    return { passed: verdict.passed, trades, discovery, test, excess };
 }
 
 export async function runCli(card: SetupCard, kind: RegistryEntry['kind'] = 'pre-registered', note?: string): Promise<void> {
