@@ -175,12 +175,26 @@ function historicalMarketStatus(niftyCandles: Candle[]): MarketStatus {
     };
 }
 
-function futureVolumeRatio(rows: ReplayDbCandle[], index: number): number {
+/** Volume of bar `index` vs the 20 bars before it. Known only at that bar's close. */
+function closeVolumeRatio(rows: ReplayDbCandle[], index: number): number {
     const prior = rows.slice(Math.max(0, index - 20), index).map(row => Number(row.volume));
     const average = prior.reduce((sum, value) => sum + value, 0) / Math.max(prior.length, 1);
     return average > 0 ? Number(rows[index].volume) / average : 0;
 }
 
+/**
+ * Label a historical plan without look-ahead (trust rules v2):
+ * - Trigger: a session in the trigger window CLOSES at or above entryPrice
+ *   with that session's volume ≥ triggerVolumeRatio × its 20-day average
+ *   (both known at the close).
+ * - Fill: the next session's open. If that open is at or below the stop the
+ *   trade is a loss at the open; if it is at or above the target the trade is
+ *   skipped as a chase (not triggered).
+ * - Stop/target are the plan's levels; R uses the actual fill. A gap through a
+ *   level exits at the open; a bar touching both counts as the stop.
+ * The previous version triggered on the intraday high using the day's final
+ * volume, which is not known when the high trades.
+ */
 export function resolveHistoricalOutcome(params: {
     rows: ReplayDbCandle[];
     signalIndex: number;
@@ -203,90 +217,67 @@ export function resolveHistoricalOutcome(params: {
     } = params;
     const requiredLastIndex = signalIndex + triggerWindow + outcomeWindow;
     if (requiredLastIndex >= rows.length) return null;
-    const risk = entryPrice - stopLoss;
-    if (risk <= 0 || targetPrice <= entryPrice) return null;
+    if (entryPrice - stopLoss <= 0 || targetPrice <= entryPrice) return null;
+
+    const notTriggered = (): HistoricalOutcome => ({
+        outcome: 'EXPIRED',
+        returnPct: 0,
+        rMultiple: 0,
+        resolvedAt: dateKey(rows[signalIndex + triggerWindow].tradingDate),
+        triggered: false,
+        triggeredAt: null,
+        daysToTrigger: null,
+        postTriggerOutcome: null,
+        timeExit: false,
+        maximumR: null,
+        minimumR: null,
+    });
 
     let triggerIndex = -1;
     for (let index = signalIndex + 1; index <= signalIndex + triggerWindow; index += 1) {
-        if (rows[index].high >= entryPrice && futureVolumeRatio(rows, index) >= triggerVolumeRatio) {
+        if (rows[index].close >= entryPrice && closeVolumeRatio(rows, index) >= triggerVolumeRatio) {
             triggerIndex = index;
             break;
         }
     }
+    if (triggerIndex < 0) return notTriggered();
 
-    if (triggerIndex < 0) {
-        return {
-            outcome: 'EXPIRED',
-            returnPct: 0,
-            rMultiple: 0,
-            resolvedAt: dateKey(rows[signalIndex + triggerWindow].tradingDate),
-            triggered: false,
-            triggeredAt: null,
-            daysToTrigger: null,
-            postTriggerOutcome: null,
-            timeExit: false,
-            maximumR: null,
-            minimumR: null,
-        };
-    }
+    const entryIndex = triggerIndex + 1;
+    const fill = rows[entryIndex].open;
+    if (!(fill > 0) || fill >= targetPrice) return notTriggered();
+    const risk = fill - stopLoss;
+    const base = {
+        triggered: true,
+        triggeredAt: dateKey(rows[triggerIndex].tradingDate),
+        daysToTrigger: triggerIndex - signalIndex,
+    };
+    const result = (outcome: 'WON' | 'LOST' | 'EXPIRED', exit: number, index: number, maximumR: number | null, minimumR: number | null): HistoricalOutcome => ({
+        outcome,
+        returnPct: +(((exit - fill) / fill) * 100).toFixed(4),
+        rMultiple: risk > 0 ? +((exit - fill) / risk).toFixed(4) : -1,
+        resolvedAt: dateKey(rows[index].tradingDate),
+        ...base,
+        postTriggerOutcome: outcome === 'EXPIRED' ? 'TIME_EXIT' : outcome,
+        timeExit: outcome === 'EXPIRED',
+        maximumR: maximumR === null ? null : +maximumR.toFixed(4),
+        minimumR: minimumR === null ? null : +minimumR.toFixed(4),
+    });
+    if (risk <= 0) return result('LOST', fill, entryIndex, null, null); // opened at or below the stop
 
     const lastOutcomeIndex = Math.min(rows.length - 1, triggerIndex + outcomeWindow);
     let maximumR = Number.NEGATIVE_INFINITY;
     let minimumR = Number.POSITIVE_INFINITY;
-    for (let index = triggerIndex; index <= lastOutcomeIndex; index += 1) {
+    for (let index = entryIndex; index <= lastOutcomeIndex; index += 1) {
         const row = rows[index];
-        maximumR = Math.max(maximumR, (row.high - entryPrice) / risk);
-        minimumR = Math.min(minimumR, (row.low - entryPrice) / risk);
-        const hitStop = row.low <= stopLoss;
-        const hitTarget = row.high >= targetPrice;
-        // Daily candles do not reveal intraday ordering. If both levels trade
-        // on one bar, resolve as a loss to avoid optimistic label leakage.
-        if (hitStop) {
-            return {
-                outcome: 'LOST',
-                returnPct: +(((stopLoss - entryPrice) / entryPrice) * 100).toFixed(4),
-                rMultiple: -1,
-                resolvedAt: dateKey(row.tradingDate),
-                triggered: true,
-                triggeredAt: dateKey(rows[triggerIndex].tradingDate),
-                daysToTrigger: triggerIndex - signalIndex,
-                postTriggerOutcome: 'LOST',
-                timeExit: false,
-                maximumR: +maximumR.toFixed(4),
-                minimumR: +minimumR.toFixed(4),
-            };
-        }
-        if (hitTarget) {
-            return {
-                outcome: 'WON',
-                returnPct: +(((targetPrice - entryPrice) / entryPrice) * 100).toFixed(4),
-                rMultiple: +((targetPrice - entryPrice) / risk).toFixed(4),
-                resolvedAt: dateKey(row.tradingDate),
-                triggered: true,
-                triggeredAt: dateKey(rows[triggerIndex].tradingDate),
-                daysToTrigger: triggerIndex - signalIndex,
-                postTriggerOutcome: 'WON',
-                timeExit: false,
-                maximumR: +maximumR.toFixed(4),
-                minimumR: +minimumR.toFixed(4),
-            };
-        }
+        maximumR = Math.max(maximumR, (row.high - fill) / risk);
+        minimumR = Math.min(minimumR, (row.low - fill) / risk);
+        if (index > entryIndex && row.open <= stopLoss) return result('LOST', row.open, index, maximumR, minimumR);
+        if (index > entryIndex && row.open >= targetPrice) return result('WON', row.open, index, maximumR, minimumR);
+        // Daily candles do not reveal intraday ordering: both levels on one bar is a loss.
+        if (row.low <= stopLoss) return result('LOST', stopLoss, index, maximumR, minimumR);
+        if (row.high >= targetPrice) return result('WON', targetPrice, index, maximumR, minimumR);
     }
-
-    const exit = rows[lastOutcomeIndex].close;
-    return {
-        outcome: 'EXPIRED',
-        returnPct: +(((exit - entryPrice) / entryPrice) * 100).toFixed(4),
-        rMultiple: +((exit - entryPrice) / risk).toFixed(4),
-        resolvedAt: dateKey(rows[lastOutcomeIndex].tradingDate),
-        triggered: true,
-        triggeredAt: dateKey(rows[triggerIndex].tradingDate),
-        daysToTrigger: triggerIndex - signalIndex,
-        postTriggerOutcome: 'TIME_EXIT',
-        timeExit: true,
-        maximumR: +maximumR.toFixed(4),
-        minimumR: +minimumR.toFixed(4),
-    };
+    return result('EXPIRED', rows[lastOutcomeIndex].close, lastOutcomeIndex, maximumR, minimumR);
 }
 
 function buildReplaySetup(
