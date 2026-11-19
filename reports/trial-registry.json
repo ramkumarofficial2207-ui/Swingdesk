@@ -1,0 +1,138 @@
+[
+  {
+    "id": "setup-evidence-v2",
+    "name": "Scanner setup types replayed with app levels (21 types)",
+    "plan": "setup-trust-rules.md",
+    "kind": "pre-registered",
+    "discovery": null,
+    "test": null,
+    "verdict": "FAIL",
+    "note": "21 setup types; 0 trusted, 0 on trial. Counts as 21 ideas. Units: R.",
+    "ranAt": "2026-11-19T00:00:00.000Z"
+  },
+  {
+    "id": "five-percent-study",
+    "name": "Fixed +5%/-2.5% with forward-selected conditions",
+    "plan": "five-percent-study.md",
+    "kind": "pre-registered",
+    "discovery": {
+      "n": 546,
+      "avg": 0.207,
+      "dayClustered": null
+    },
+    "test": {
+      "n": 365,
+      "avg": -0.387,
+      "dayClustered": null
+    },
+    "verdict": "FAIL",
+    "note": "Units: R. Conditions chosen by greedy search on discovery.",
+    "ranAt": "2026-11-19T00:00:00.000Z"
+  },
+  {
+    "id": "volatility-exit-study",
+    "name": "ATR-scaled exits, 4 designs x condition search",
+    "plan": "volatility-exit-study-plan.md",
+    "kind": "pre-registered",
+    "discovery": {
+      "n": 301,
+      "avg": 0.224,
+      "dayClustered": null
+    },
+    "test": {
+      "n": 274,
+      "avg": null,
+      "dayClustered": null
+    },
+    "verdict": "FAIL",
+    "note": "Units: R. Primary Design D; see report for test numbers.",
+    "ranAt": "2026-11-19T00:00:00.000Z"
+  },
+  {
+    "id": "momentum-pullback",
+    "name": "Momentum leader pullback and resumption",
+    "plan": "momentum-pullback-plan.md",
+    "kind": "pre-registered",
+    "discovery": {
+      "n": 400,
+      "avg": 0.06,
+      "dayClustered": null
+    },
+    "test": {
+      "n": 482,
+      "avg": -0.109,
+      "dayClustered": null
+    },
+    "verdict": "FAIL",
+    "note": "Units: R. Primary P1.",
+    "ranAt": "2026-11-19T00:00:00.000Z"
+  },
+  {
+    "id": "post-results-drift",
+    "name": "Post-results drift (D2, above 50-day before event)",
+    "plan": "post-results-drift-plan.md",
+    "kind": "pre-registered",
+    "discovery": {
+      "n": 326,
+      "avg": 0.32,
+      "dayClustered": null
+    },
+    "test": {
+      "n": 394,
+      "avg": -0.015,
+      "dayClustered": null
+    },
+    "verdict": "FAIL",
+    "note": "Units: R.",
+    "ranAt": "2026-11-19T00:00:00.000Z"
+  },
+  {
+    "id": "next-day-clues-discovery",
+    "name": "Next-day clue scan, 16 clues + 9 combinations (discovery only)",
+    "plan": "next-day-clues-discovery.md",
+    "kind": "exploration",
+    "discovery": null,
+    "test": null,
+    "verdict": "EXPLORATION",
+    "note": "25 looks. Led to the uptrend dip study.",
+    "ranAt": "2026-11-19T00:00:00.000Z"
+  },
+  {
+    "id": "uptrend-dip",
+    "name": "Uptrend dip (U1 hold 5 sessions, all signals)",
+    "plan": "uptrend-dip-plan.md",
+    "kind": "pre-registered",
+    "discovery": {
+      "n": 3153,
+      "avg": 0.54,
+      "dayClustered": 0.38
+    },
+    "test": {
+      "n": 2874,
+      "avg": 0.53,
+      "dayClustered": -0.58
+    },
+    "verdict": "FAIL",
+    "note": "Units: net %. Failed day-clustered rule.",
+    "ranAt": "2026-11-19T00:00:00.000Z"
+  },
+  {
+    "id": "harness-check-uptrend-dip",
+    "name": "Harness check: uptrend dip (U1) under trader rules",
+    "plan": "uptrend-dip-plan.md",
+    "ranAt": "2026-11-19T14:47:52.852Z",
+    "kind": "harness-check",
+    "discovery": {
+      "n": 567,
+      "avg": 0.9751415174624012,
+      "dayClustered": 0.9565480193632441
+    },
+    "test": {
+      "n": 491,
+      "avg": -0.5965207549537241,
+      "dayClustered": -0.5853840794680006
+    },
+    "verdict": "FAIL",
+    "note": "Re-run of a failed study to validate the harness; ranking by dip depth was added for the top-N rule."
+  }
+]

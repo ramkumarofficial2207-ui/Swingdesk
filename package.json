@@ -43,7 +43,8 @@
         "backtest:universe": "cross-env BACKTEST_UNIVERSE_MODE=broad_india BACKTEST_UNIVERSE_ONLY=1 ts-node --transpile-only backtest.ts",
         "research:next-day-clues": "node --max-old-space-size=6144 -r ts-node/register/transpile-only src/research/nextDayClues.ts",
         "research:uptrend-dip": "node --max-old-space-size=6144 -r ts-node/register/transpile-only src/research/runUptrendDip.ts",
-        "research:forward-check": "node --max-old-space-size=4096 -r ts-node/register/transpile-only src/research/forwardCheck.ts"
+        "research:forward-check": "node --max-old-space-size=4096 -r ts-node/register/transpile-only src/research/forwardCheck.ts",
+        "research:harness-check": "node --max-old-space-size=6144 -r ts-node/register/transpile-only src/research/cards/uptrendDipCheck.ts"
     },
     "dependencies": {
         "@anthropic-ai/sdk": "^0.78.0",
