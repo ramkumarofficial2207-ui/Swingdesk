@@ -242,5 +242,41 @@
       "dayClustered": -1.0680936005892099
     },
     "verdict": "FAIL"
+  },
+  {
+    "id": "monthly-momentum-m1",
+    "name": "Monthly momentum M1 (always invested)",
+    "plan": "monthly-momentum-plan.md",
+    "ranAt": "2026-11-19T15:27:42.044Z",
+    "kind": "pre-registered",
+    "discovery": {
+      "n": 514,
+      "avg": 2.8408781251667383,
+      "dayClustered": 2.615790746985472
+    },
+    "test": {
+      "n": 473,
+      "avg": 1.080705023967971,
+      "dayClustered": 1.3143330744727182
+    },
+    "verdict": "FAIL"
+  },
+  {
+    "id": "monthly-momentum-m2",
+    "name": "Monthly momentum M2 (only when NIFTY is above its 200-day average)",
+    "plan": "monthly-momentum-plan.md",
+    "ranAt": "2026-11-19T15:28:52.800Z",
+    "kind": "pre-registered",
+    "discovery": {
+      "n": 430,
+      "avg": 3.1768944415267066,
+      "dayClustered": 1.2977398755624643
+    },
+    "test": {
+      "n": 304,
+      "avg": 1.114176872657497,
+      "dayClustered": 1.4275534115311166
+    },
+    "verdict": "FAIL"
   }
 ]
