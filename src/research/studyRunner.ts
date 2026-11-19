@@ -19,6 +19,8 @@ export interface SignalContext {
     industry: string;
     /** NIFTY 50 close above its 50-day average on this date. */
     marketUp: (date: string) => boolean | undefined;
+    /** NIFTY 50 close above its 200-day average on this date. */
+    marketAbove200: (date: string) => boolean | undefined;
 }
 
 export interface SetupCard {
@@ -105,7 +107,8 @@ export async function runSetupStudy(card: SetupCard, kind: RegistryEntry['kind']
     const nifty = (await loadAdjustedDailySeries('NIFTY_50')).bars;
     const niftyInd = computeSeriesIndicators(nifty);
     const marketUpByDate = new Map(nifty.map((bar, i) => [bar.date, Number.isFinite(niftyInd.sma50[i]) ? bar.close > niftyInd.sma50[i] : undefined]));
-    const ctxBase = { marketUp: (date: string) => marketUpByDate.get(date) };
+    const above200ByDate = new Map(nifty.map((bar, i) => [bar.date, Number.isFinite(niftyInd.sma200[i]) ? bar.close > niftyInd.sma200[i] : undefined]));
+    const ctxBase = { marketUp: (date: string) => marketUpByDate.get(date), marketAbove200: (date: string) => above200ByDate.get(date) };
 
     const barsBySymbol = new Map<string, PriceBar[]>();
     const controlSeries: Array<{ bars: PriceBar[]; at: Map<string, number>; eligible: Set<string> }> = [];
