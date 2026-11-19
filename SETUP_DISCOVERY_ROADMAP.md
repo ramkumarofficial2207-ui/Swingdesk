@@ -149,6 +149,12 @@ Mover-review runs weekly from Phase 0 onward and adds hypotheses to the queue.
 | Weekly mover-review agent | ⏳ Next, alongside Phase 1 |
 | Industry labels for stocks no longer in the Nifty 500 | ⚠️ Limitation: they count as their own sector, so the sector cap can't group them |
 
+### Phase 1 result (2026-11-19): sector momentum ❌ FAIL
+
+[Report](reports/sector-momentum.md). Primary S2 (NIFTY above its 50-day average): test −0.57% per trade, day-clustered −0.54%, 0 of 3 test years positive, portfolio −15.0% CAGR with a 44% drawdown. S1 also failed.
+
+**New lesson (A11):** the control group showed that most of the exploration's "+0.20% over 5 days" came from using today's Nifty 500 industry labels: stocks that are in today's list did better in the past. Against the control, S1 beat other labelled stocks by only +0.03% even in discovery. **Every study that uses today's membership lists needs a control group.**
+
 **Stopping rule (agreed in advance):** if Phases 1–4 all fail, prediction work stops and SwingDesk becomes a discipline and journaling tool (sizing, stops, journal, paper record). This prevents endless searching, which is itself a source of false discoveries (A2).
 
 **Honest expectation:** no guarantee. A realistic success is a small positive average edge across many trades with controlled drawdown, not +5% every week.

@@ -134,5 +134,41 @@
     },
     "verdict": "FAIL",
     "note": "Re-run of a failed study to validate the harness; ranking by dip depth was added for the top-N rule."
+  },
+  {
+    "id": "sector-momentum-s1",
+    "name": "Sector momentum S1 (no market filter)",
+    "plan": "sector-momentum-plan.md",
+    "ranAt": "2026-11-19T14:58:27.224Z",
+    "kind": "pre-registered",
+    "discovery": {
+      "n": 518,
+      "avg": 0.09703235905291943,
+      "dayClustered": 0.09084487811635263
+    },
+    "test": {
+      "n": 574,
+      "avg": -0.296193359991955,
+      "dayClustered": -0.11516065084295343
+    },
+    "verdict": "FAIL"
+  },
+  {
+    "id": "sector-momentum-s2",
+    "name": "Sector momentum S2 (NIFTY above 50-day average)",
+    "plan": "sector-momentum-plan.md",
+    "ranAt": "2026-11-19T15:00:18.583Z",
+    "kind": "pre-registered",
+    "discovery": {
+      "n": 345,
+      "avg": 0.28172888170505594,
+      "dayClustered": 0.3123113633107262
+    },
+    "test": {
+      "n": 379,
+      "avg": -0.5683305926342604,
+      "dayClustered": -0.5382716754065427
+    },
+    "verdict": "FAIL"
   }
 ]
