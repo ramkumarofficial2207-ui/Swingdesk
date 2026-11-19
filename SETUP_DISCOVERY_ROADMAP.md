@@ -155,6 +155,12 @@ Mover-review runs weekly from Phase 0 onward and adds hypotheses to the queue.
 
 **New lesson (A11):** the control group showed that most of the exploration's "+0.20% over 5 days" came from using today's Nifty 500 industry labels: stocks that are in today's list did better in the past. Against the control, S1 beat other labelled stocks by only +0.03% even in discovery. **Every study that uses today's membership lists needs a control group.**
 
+### Phase 2 result (2026-11-19): global and commodity cues ❌ FAIL
+
+[Report](reports/global-cues.md). New data feed: copper, Brent, USD/INR, Nasdaq, S&P 500 and gold from 2019 (`GlobalMarketDaily`, nightly top-up, freshness-monitored). Primary G1 (|z| ≥ 1.5): test −0.11% per trade, day-clustered −0.38%, portfolio −3.6% CAGR with a 33% drawdown vs NIFTY +5.7%. G2 also failed.
+
+Per cue (information only): **copper falls → consumer durables** was positive in both periods (discovery +0.37%, 61 trades; test +0.68%, day-clustered +0.57%, 46 trades). **Rupee weakens → IT and pharma** was clearly negative in both (−0.78%, −0.83%). Promoting one cue after seeing test results is the A2/A4 trap, so neither changes the verdict. The copper cue can only be judged on **new live data** (forward paper), never on 2021–26 again.
+
 **Stopping rule (agreed in advance):** if Phases 1–4 all fail, prediction work stops and SwingDesk becomes a discipline and journaling tool (sizing, stops, journal, paper record). This prevents endless searching, which is itself a source of false discoveries (A2).
 
 **Honest expectation:** no guarantee. A realistic success is a small positive average edge across many trades with controlled drawdown, not +5% every week.

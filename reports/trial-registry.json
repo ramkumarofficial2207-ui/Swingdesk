@@ -170,5 +170,41 @@
       "dayClustered": -0.5382716754065427
     },
     "verdict": "FAIL"
+  },
+  {
+    "id": "global-cues-g1",
+    "name": "Global and commodity cues G1 (|z| ≥ 1.5)",
+    "plan": "global-cues-plan.md",
+    "ranAt": "2026-11-19T15:08:00.657Z",
+    "kind": "pre-registered",
+    "discovery": {
+      "n": 331,
+      "avg": -0.1810365981962034,
+      "dayClustered": -0.19633276142079414
+    },
+    "test": {
+      "n": 326,
+      "avg": -0.10556915488560634,
+      "dayClustered": -0.3795968857251191
+    },
+    "verdict": "FAIL"
+  },
+  {
+    "id": "global-cues-g2",
+    "name": "Global and commodity cues G2 (|z| ≥ 2.0)",
+    "plan": "global-cues-plan.md",
+    "ranAt": "2026-11-19T15:09:00.962Z",
+    "kind": "pre-registered",
+    "discovery": {
+      "n": 207,
+      "avg": -0.19248031971670126,
+      "dayClustered": -0.21894371847193494
+    },
+    "test": {
+      "n": 223,
+      "avg": -0.06893779322314716,
+      "dayClustered": -0.2738899035987442
+    },
+    "verdict": "FAIL"
   }
 ]
