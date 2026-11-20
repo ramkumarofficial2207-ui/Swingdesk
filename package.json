@@ -47,6 +47,7 @@
         "research:harness-check": "node --max-old-space-size=6144 -r ts-node/register/transpile-only src/research/cards/uptrendDipCheck.ts",
         "data:freshness": "ts-node --transpile-only src/dataFreshness.ts",
         "nightly:research": "node --max-old-space-size=4096 -r ts-node/register/transpile-only src/nightlyResearch.ts",
+        "research:early-session": "node --max-old-space-size=8192 -r ts-node/register/transpile-only src/research/earlySessionStudy.ts",
         "research:sector-momentum": "node --max-old-space-size=8192 -r ts-node/register/transpile-only src/research/cards/sectorMomentum.ts",
         "data:global": "ts-node --transpile-only src/globalMarketBackfill.ts",
         "data:intraday-pilot": "ts-node --transpile-only src/research/intradayPilot.ts",

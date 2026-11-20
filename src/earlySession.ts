@@ -66,9 +66,18 @@ export interface EarlySessionResult {
 
 const round = (value: number, digits = 2) => Math.round(value * 10 ** digits) / 10 ** digits;
 
-/** Apply the frozen rules to one session. Pure: no database, no clock. */
-export function scoreEarlySession(sessions: StockSession[], rules = EARLY_RULES): Pick<EarlySessionResult, 'withData' | 'clusters' | 'setups' | 'skippedWideStop'> {
-    const ready = sessions.flatMap(session => {
+export interface EarlyFeatures {
+    session: StockSession;
+    returnPct: number;
+    relativeVolume: number | null;
+    price945: number;
+    openingRangeHigh: number;
+    openingRangeLow: number;
+}
+
+/** Per-stock 09:45 features and the day's sector clusters. Pure; shared by the app and the history study. */
+export function earlyFeatures(sessions: StockSession[], rules = EARLY_RULES): { ready: EarlyFeatures[]; clusters: SectorCluster[]; clustered: Set<string> } {
+    const ready: EarlyFeatures[] = sessions.flatMap(session => {
         const byTime = new Map(session.bars.map(bar => [bar.time, bar]));
         const window = rules.signalBars.map(time => byTime.get(time));
         if (window.some(bar => !bar)) return [];
@@ -99,18 +108,30 @@ export function scoreEarlySession(sessions: StockSession[], rules = EARLY_RULES)
         }))
         .filter(cluster => cluster.inTop >= rules.minSectorInTop && cluster.topShare >= rules.minSectorOverrepresentation * cluster.universeShare)
         .sort((a, b) => b.inTop - a.inTop);
-    const clustered = new Set(clusters.map(cluster => cluster.sector));
+    return { ready, clusters, clustered: new Set(clusters.map(cluster => cluster.sector)) };
+}
 
+/** Trade levels for a stock that broke out at 09:45: max entry, stop at the opening-range low, 1.5R target. */
+export function earlyLevels(row: EarlyFeatures, rules = EARLY_RULES): { maxEntry: number; stop: number; stopPct: number; target: number } {
+    return {
+        maxEntry: row.price945 * (1 + rules.maxChasePct / 100),
+        stop: row.openingRangeLow,
+        stopPct: (1 - row.openingRangeLow / row.price945) * 100,
+        target: row.price945 + rules.targetR * (row.price945 - row.openingRangeLow),
+    };
+}
+
+/** Apply the frozen rules to one session. Pure: no database, no clock. */
+export function scoreEarlySession(sessions: StockSession[], rules = EARLY_RULES): Pick<EarlySessionResult, 'withData' | 'clusters' | 'setups' | 'skippedWideStop'> {
+    const { ready, clusters, clustered } = earlyFeatures(sessions, rules);
     const setups: EarlySetup[] = [];
     const skippedWideStop: EarlySessionResult['skippedWideStop'] = [];
     for (const row of ready) {
         if (!clustered.has(row.session.sector)) continue;
         if (row.relativeVolume === null || row.relativeVolume < rules.minRelativeVolume) continue;
         if (!(row.price945 > row.openingRangeHigh)) continue;
-        const maxEntry = row.price945 * (1 + rules.maxChasePct / 100);
-        const stopPct = (1 - row.openingRangeLow / row.price945) * 100;
+        const { maxEntry, stopPct, target } = earlyLevels(row, rules);
         if (stopPct > rules.maxStopPct) { skippedWideStop.push({ symbol: row.session.symbol, stopPct: round(stopPct) }); continue; }
-        const target = row.price945 + rules.targetR * (row.price945 - row.openingRangeLow);
         setups.push({
             symbol: row.session.symbol,
             sector: row.session.sector,

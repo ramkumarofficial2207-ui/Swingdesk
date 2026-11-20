@@ -9,6 +9,7 @@ Committed 2026-11-20, **before** any 5-minute history beyond the 50-stock pilot 
 - Sector labels: today's Nifty 500 industry list (known bias A11; stocks without a label are "Unknown" and never form a cluster).
 - Known limit: Dhan has no history for stocks that stopped trading, so absolute returns are optimistic. Control groups use the same data.
 - Excluded: weekend special sessions (Budget Sunday, Muhurat) and days with fewer than the six 09:15–09:40 bars.
+- **Amendment, 2026-11-20 (committed before any test-period run):** a session is excluded when fewer than 80% of that day's universe have the full 09:15–09:40 bars and a 20-session volume baseline. That's a data gap, not market behaviour. The volume baseline needs at least 15 of the previous 20 sessions. Track A code: `src/research/earlySessionStudy.ts`.
 
 ## Periods
 
