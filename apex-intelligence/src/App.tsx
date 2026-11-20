@@ -1,6 +1,7 @@
 import { FormEvent, ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowUpRight, Bookmark, Bot, Check, ChevronRight, LayoutDashboard, MessageSquare, Plus, RefreshCw, Search, Settings2, TrendingUp, X } from 'lucide-react';
-import { apiJson, setWorkspaceToken } from './lib/api';
+import { ApiError, apiJson, setWorkspaceToken } from './lib/api';
+import { SignIn } from './swingdesk/SignIn';
 import { hasConfirmedBuyTrigger, normalizeScanItems } from './lib/scanItems';
 import { confirmedDiscoverSetups } from './lib/confirmedDiscover';
 import { DEFAULT_STOP_LIMIT, STOP_LIMIT_OPTIONS, gateByStop, stopDistancePct, stopRangeLabel } from './lib/riskGate';
@@ -58,7 +59,12 @@ export default function App() {
   if(w.status==='fulfilled')setWatchlist(w.value.data||[]); if(t.status==='fulfilled')setTrades(t.value.data||[]); if(c.status==='fulfilled')setCapital(c.value.data);
   setError(results.flatMap((r,i)=>r.status==='rejected'?[`${['Discovery','Watchlist','Portfolio','Capital','Trigger status','EOD research','Setup evidence'][i]}: ${r.reason.message}`]:[]).join(' · '));setLoading(false);
  },[]);
- const connect = useCallback(async()=>{setConnecting(true);setError('');try{const r=await apiJson<{token:string;user:Capital}>('/api/workspace/session',{method:'POST'});if(!r.token)throw new Error('Invalid workspace session.');setWorkspaceToken(r.token);setCapital(r.user);setReady(true);await refresh();}catch(e){setReady(false);setError((e as Error).message);}finally{setConnecting(false);}},[refresh]);
+ const [needsLogin,setNeedsLogin] = useState(false);
+ const connect = useCallback(async()=>{setConnecting(true);setError('');try{const r=await apiJson<{token:string;user:Capital}>('/api/workspace/session',{method:'POST'});if(!r.token)throw new Error('Invalid workspace session.');setWorkspaceToken(r.token);setCapital(r.user);setReady(true);await refresh();}catch(e){
+  // Hosted app: no local workspace, so use a saved sign-in or ask for one.
+  if(e instanceof ApiError&&e.status===403){try{const me=await apiJson<{user:Capital}>('/api/auth/me');setCapital(me.user);setNeedsLogin(false);setReady(true);await refresh();}catch{setReady(false);setNeedsLogin(true);}}
+  else{setReady(false);setError((e as Error).message);}}finally{setConnecting(false);}},[refresh]);
+ const signedIn=(token:string,user:Capital)=>{try{localStorage.setItem('token',token);}catch{/* storage unavailable: session only */}setWorkspaceToken(token);setCapital(user);setNeedsLogin(false);setReady(true);void refresh();};
  useEffect(()=>{void connect();},[connect]);
  useEffect(()=>{const expired=()=>{setReady(false);setError('Your local session ended. Reconnect to continue.');};window.addEventListener('auth:unauthorized',expired);return()=>window.removeEventListener('auth:unauthorized',expired);},[]);
  useEffect(()=>{if(!ready)return;const c=new AbortController();setDetail(undefined);setDetailError('');setDetailLoading(true);setNews([]);setNewsError('');
@@ -101,6 +107,7 @@ export default function App() {
   }
   setBusy(true);try{await apiJson(endpoint,{method,body:JSON.stringify(body)});setDialog(null);setNotice(dialog==='settings'?'Capital settings updated.':'Paper trade saved.');await refresh();}catch(e){setFormError((e as Error).message);}finally{setBusy(false);}
  }
+ if(needsLogin&&!ready) return <div className="sd-app"><SignIn onSignedIn={signedIn}/></div>;
  return <div className="sd-app">
  <header className="sd-header"><a className="sd-brand" href="#" onClick={e=>{e.preventDefault();setView('workspace');}}><span className="sd-brand-mark"><TrendingUp size={22}/></span><span>Swing<span className="sd-brand-light">Desk</span><small>RESEARCH. PLAN. TRACK.</small></span></a><nav aria-label="Main navigation"><button className={view==='workspace'?'active':''} onClick={()=>setView('workspace')}><LayoutDashboard size={16}/>Workspace</button><button className={view==='assistant'?'active':''} onClick={()=>setView('assistant')}><MessageSquare size={16}/>Research Assistant</button><button className={view==='autopaper'?'active':''} onClick={()=>setView('autopaper')}><Bot size={16}/>Auto Paper</button></nav><RegimePill regime={regime}/><div className="sd-account"><i/><span>Paper capital<strong>{money(capital?.tradingCapital)}</strong></span><button className="sd-icon" aria-label="Capital settings" disabled={!ready} onClick={()=>showDialog('settings')}><Settings2 size={18}/></button><span className="sd-avatar">P</span></div></header>
  <div className="sd-statusbar"><span><i className={ready?'connected':''}/>{ready?'Personal workspace':connecting?'Connecting to workspace':'Workspace offline'}<b>/</b>NSE equities</span><span>Paper trading only <b>·</b>{timestamp?`Last scan ${date(timestamp)}`:'No scan loaded'}</span></div>

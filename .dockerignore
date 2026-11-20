@@ -11,6 +11,7 @@ dist
 apex-intelligence/dist
 coverage
 data
+!data/nifty500-constituents.csv
 reports
 scratch
 references

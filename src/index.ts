@@ -494,6 +494,11 @@ app.get('/api/broker/status', requireAuth, (_req: Request, res: Response) => {
 
 // POST /api/auth/register
 app.post('/api/auth/register', authLimiter, validateBody(registerSchema), async (req: Request, res: Response) => {
+    // Hosted SwingDesk is a single-owner app: accounts are created with `npm run user:owner`.
+    if (process.env.ALLOW_REGISTRATION !== 'true') {
+        res.status(403).json({ success: false, message: 'Registration is closed.' });
+        return;
+    }
     const { name } = req.body || {};
     const email = normalizeEmail(req.body?.email);
     const mobileNumber = normalizeMobileNumber(req.body?.mobileNumber);
