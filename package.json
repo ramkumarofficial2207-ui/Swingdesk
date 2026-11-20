@@ -54,7 +54,9 @@
         "data:intraday-backfill": "node --max-old-space-size=6144 -r ts-node/register/transpile-only src/research/intradayBackfill.ts",
         "research:global-cues": "node --max-old-space-size=8192 -r ts-node/register/transpile-only src/research/cards/globalCues.ts",
         "research:institutional-buys": "node --max-old-space-size=8192 -r ts-node/register/transpile-only src/research/cards/institutionalBuys.ts",
-        "research:trend-ride": "node --max-old-space-size=8192 -r ts-node/register/transpile-only src/research/cards/trendRide.ts"
+        "research:trend-ride": "node --max-old-space-size=8192 -r ts-node/register/transpile-only src/research/cards/trendRide.ts",
+        "fno:backfill": "ts-node --transpile-only src/fnoBhavcopy.ts",
+        "paper:auto": "node --max-old-space-size=4096 -r ts-node/register/transpile-only src/autoPaper.ts"
     },
     "dependencies": {
         "@anthropic-ai/sdk": "^0.78.0",

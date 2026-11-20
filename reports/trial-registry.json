@@ -296,5 +296,24 @@
       "dayClustered": -0.27627954654545184
     },
     "verdict": "FAIL"
+  },
+  {
+    "id": "trend-ride-hold20",
+    "name": "Trend ride picks, +5% target, 20-session hold (exploration)",
+    "plan": "trend-ride-plan.md",
+    "ranAt": "2026-11-20T17:51:26.482Z",
+    "kind": "exploration",
+    "discovery": {
+      "n": 240,
+      "avg": 0.14402265675824413,
+      "dayClustered": 0.12346566724649033
+    },
+    "test": {
+      "n": 190,
+      "avg": -0.39084582883989083,
+      "dayClustered": -0.29327309874326263
+    },
+    "verdict": "FAIL",
+    "note": "Not pre-registered: the test years were already seen in trend-ride. Treat as a hint for paper trading, not proof."
   }
 ]

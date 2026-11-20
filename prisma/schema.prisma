@@ -806,3 +806,52 @@ model IntradayCandle {
   @@id([symbol, startTime])
   @@index([tradingDate, symbol])
 }
+
+/// Daily F&O summary per underlying from the NSE F&O Bhavcopy. Open interest
+/// is in shares and summed over all expiries; contracts are traded contracts.
+model FnoDaily {
+  symbol       String
+  tradingDate  DateTime  @db.Date
+  isIndex      Boolean   @default(false)
+  futOi        BigInt    @default(0)
+  futOiChange  BigInt    @default(0)
+  futContracts BigInt    @default(0)
+  nearExpiry   DateTime? @db.Date
+  nearFutClose Float?
+  callOi       BigInt    @default(0)
+  putOi        BigInt    @default(0)
+  callOiChange BigInt    @default(0)
+  putOiChange  BigInt    @default(0)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @default(now()) @updatedAt
+
+  @@id([symbol, tradingDate])
+  @@index([tradingDate])
+}
+
+/// Automatic paper trades (src/autoPaper.ts): top picks per strategy each
+/// evening, entered at the next open, +5% target, -2.5% stop, 15 sessions.
+/// Prices are in signal-day terms (before later splits or bonuses). Never an order.
+model AutoPaperTrade {
+  id              String    @id @default(uuid()) @db.Uuid
+  strategy        String
+  symbol          String
+  signalDate      DateTime  @db.Date
+  rank            Int
+  score           Float
+  reason          String
+  signalClose     Float
+  state           String // PENDING | OPEN | TARGET | STOP | EXPIRED | SKIPPED_GAP
+  entryDate       DateTime? @db.Date
+  entryPrice      Float?
+  exitDate        DateTime? @db.Date
+  exitPrice       Float?
+  netPct          Float?
+  sessionsHeld    Int?
+  lastCheckedDate DateTime? @db.Date
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @default(now()) @updatedAt
+
+  @@unique([strategy, symbol, signalDate])
+  @@index([state])
+}
