@@ -6,6 +6,7 @@ import { personalMode, isLocalWorkspaceRequest, openPersonalWorkspace } from './
 import { getWorkspaceHistory } from './workspaceChart';
 import { getEodResearchSignals } from './eodResearchSignals';
 import { loadEarlySession, runEarlySession } from './earlySession';
+import { catalystsFor, currentRegime, exitAdviceFor, runMorningConfirmation } from './tradingDesk';
 import { getSetupEvidence } from './setupEvidenceService';
 import { assessWorkspaceReadiness } from './workspaceReadiness';
 import express, { Request, Response, NextFunction } from 'express';
@@ -1239,6 +1240,36 @@ app.get('/api/last', requireAuth, requireSubscription, async (req: Request, res:
 app.get('/api/research/eod-signals', requireAuth, requireSubscription, async (_req: Request, res: Response) => {
     try { res.setHeader('Cache-Control', 'no-store'); res.json({ success: true, data: await getEodResearchSignals() }); }
     catch (error: any) { res.status(503).json({ success: false, message: 'EOD research signals are unavailable.' }); }
+});
+
+// Trading desk (docs/TRADING_DESK_ARCHITECTURE.md): regime gate, catalysts, morning confirmation, exit advice.
+const SYMBOL_RE = /^[A-Z0-9&_-]{1,20}$/;
+app.get('/api/research/regime', requireAuth, requireSubscription, async (_req: Request, res: Response) => {
+    try { res.setHeader('Cache-Control', 'no-store'); res.json({ success: true, data: await currentRegime() }); }
+    catch (error: any) { res.status(503).json({ success: false, message: 'Market regime is unavailable.' }); }
+});
+
+app.get('/api/research/catalysts', requireAuth, requireSubscription, async (req: Request, res: Response) => {
+    const symbols = String(req.query.symbols ?? '').toUpperCase().split(',').map(s => s.trim()).filter(s => SYMBOL_RE.test(s)).slice(0, 100);
+    try { res.json({ success: true, data: await catalystsFor(symbols) }); }
+    catch (error: any) { res.status(503).json({ success: false, message: 'Catalysts are unavailable.' }); }
+});
+
+let morningConfirmRun = false;
+app.post('/api/research/morning-confirm', requireAuth, requireSubscription, async (req: Request, res: Response) => {
+    const symbols = Array.isArray(req.body?.symbols) ? req.body.symbols.map((s: unknown) => String(s).toUpperCase()).filter((s: string) => SYMBOL_RE.test(s)) : [];
+    const date = typeof req.body?.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(req.body.date) ? req.body.date : undefined;
+    if (!symbols.length) return res.status(400).json({ success: false, message: 'No watchlist symbols to confirm.' });
+    if (morningConfirmRun) return res.status(409).json({ success: false, message: 'A morning confirmation is already running.' });
+    morningConfirmRun = true;
+    try { res.json({ success: true, data: await runMorningConfirmation(symbols, { date }) }); }
+    catch (error: any) { res.status(400).json({ success: false, message: error?.message || 'Morning confirmation failed.' }); }
+    finally { morningConfirmRun = false; }
+});
+
+app.get('/api/portfolio/exit-advice', requireAuth, async (req: AuthRequest, res: Response) => {
+    try { res.setHeader('Cache-Control', 'no-store'); res.json({ success: true, data: await exitAdviceFor(req.userId!) }); }
+    catch (error: any) { res.status(503).json({ success: false, message: 'Exit advice is unavailable.' }); }
 });
 
 // Early-session scan (research only): latest stored result, or run it now / replay a past date.

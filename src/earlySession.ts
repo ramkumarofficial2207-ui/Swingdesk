@@ -196,7 +196,7 @@ async function loadSessions(date: string, symbols: string[]): Promise<StockSessi
 }
 
 /** Fetch today's 09:15→now 5-minute bars for the universe from Dhan, a few requests at a time. */
-async function fetchToday(date: string, symbols: string[]): Promise<number> {
+export async function fetchToday(date: string, symbols: string[]): Promise<number> {
     const api = getDhanApiFromEnv();
     if (!api) throw new Error('Dhan is not configured. Add a valid DHAN_ACCESS_TOKEN to .env.');
     const from = new Date(`${date}T09:15:00+05:30`);

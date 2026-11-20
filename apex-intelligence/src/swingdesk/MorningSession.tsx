@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Play, RefreshCw, Sunrise } from 'lucide-react';
 import { apiJson } from '../lib/api';
 import { positionSize } from '../lib/setupTrust';
+import { DESK, REGIME_COPY, RegimeView } from '../lib/desk';
 import './morning.css';
 
 interface EarlySetup {
@@ -14,13 +15,27 @@ interface EarlyResult {
   setups: EarlySetup[]; skippedWideStop: Array<{ symbol: string; stopPct: number }>; note?: string;
 }
 
+interface Confirmation { symbol: string; status: 'CONFIRMED' | 'NOT_TRIGGERED' | 'STOP_TOO_WIDE' | 'NO_DATA'; price945: number | null; previousHigh: number | null; dayLow: number | null; maxEntry: number | null; stop: number | null; stopPct: number | null; target: number | null; rewardRisk: number | null }
+interface ConfirmRun { date: string; generatedAt: string; regime: 'GREEN' | 'AMBER' | 'RED' | null; results: Confirmation[] }
+const STATUS_LABEL: Record<Confirmation['status'], string> = { CONFIRMED: 'Confirmed', NOT_TRIGGERED: 'Not above yesterday’s high', STOP_TOO_WIDE: 'Stop too wide', NO_DATA: 'No data' };
+
 const money = (value: number) => `₹${value.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
 const istNow = () => new Date(Date.now() + 5.5 * 3_600_000).toISOString();
 
 /** Morning 9:45 tab: the early-session scan (research only until its history test passes). */
-export function MorningSession({ ready, capital, maxRiskPct, availableCash, onOpenStock }: {
+export function MorningSession({ ready, capital, maxRiskPct, availableCash, onOpenStock, regime, watchSymbols }: {
   ready: boolean; capital?: number; maxRiskPct?: number; availableCash?: number; onOpenStock: (symbol: string) => void;
+  regime?: RegimeView | null; watchSymbols?: string[];
 }) {
+  const [confirm, setConfirm] = useState<ConfirmRun | null>(null);
+  const [confirming, setConfirming] = useState(false);
+  const symbols = [...new Set(watchSymbols ?? [])];
+  async function runConfirm(date?: string) {
+    setConfirming(true); setError('');
+    try { setConfirm((await apiJson<{ data: ConfirmRun }>('/api/research/morning-confirm', { method: 'POST', body: JSON.stringify({ symbols, ...(date ? { date } : {}) }) })).data); }
+    catch (e) { setError((e as Error).message); }
+    finally { setConfirming(false); }
+  }
   const [result, setResult] = useState<EarlyResult | null>(null);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState('');
@@ -64,6 +79,44 @@ export function MorningSession({ ready, capital, maxRiskPct, availableCash, onOp
 
       {error && <div className="sd-banner error" role="alert"><span>{error}</span></div>}
 
+      <section className="sd-panel sd-morning-main sd-confirm-panel">
+        <div className="sd-section-title">
+          <h3>Step 2 · Confirm tonight's watchlist</h3>
+          <span>{symbols.length} watchlist stock{symbols.length === 1 ? '' : 's'} · {regime?.today ? REGIME_COPY[regime.today.state].label : 'regime —'}</span>
+        </div>
+        <p className="sd-plan-help">At 09:45, a watchlist stock is a buy only if it trades above yesterday's high, with a stop under today's low no more than {DESK.maxStopPct}% away. Target +{DESK.firstTargetPct}% for half, then trail.</p>
+        <div className="sd-heading-actions">
+          <button className="sd-primary" disabled={!ready || confirming || !symbols.length || !liveWindow} title={liveWindow ? '' : 'Runs on trading days between 09:45 and 15:10 IST'} onClick={() => void runConfirm()}>{confirming ? 'Checking…' : 'Confirm watchlist now'}</button>
+          <button disabled={!ready || confirming || !symbols.length || !replayDate} onClick={() => void runConfirm(replayDate)}>Replay date below</button>
+        </div>
+        {regime?.today?.state === 'RED' && <p className="sd-risk-note">Market is RED. Confirmations are shown for learning only; the plan says stay in cash.</p>}
+        {confirm && (
+          <div className="sd-table-wrap sd-confirm-table">
+            <table>
+              <thead><tr><th>Stock</th><th>Status</th><th>9:45 price</th><th>Yesterday high</th><th>Buy up to</th><th>Stop</th><th>Target +5%</th><th>R</th><th>Shares</th></tr></thead>
+              <tbody>{confirm.results.map(c => {
+                const size = c.status === 'CONFIRMED' && c.maxEntry && c.stop && capital && maxRiskPct ? positionSize({ capital, maxRiskPct, entry: c.maxEntry, stop: c.stop, availableCash }) : null;
+                return (
+                  <tr key={c.symbol}>
+                    <td><button className="sd-text-button" onClick={() => onOpenStock(c.symbol)}>{c.symbol}</button></td>
+                    <td className={`sd-status-${c.status.toLowerCase()}`}>{STATUS_LABEL[c.status]}</td>
+                    <td>{c.price945 ? money(c.price945) : '—'}</td>
+                    <td>{c.previousHigh ? money(c.previousHigh) : '—'}</td>
+                    <td>{c.status === 'CONFIRMED' && c.maxEntry ? money(c.maxEntry) : '—'}</td>
+                    <td>{c.stop ? money(c.stop) : '—'}{c.stopPct !== null && <small>−{c.stopPct.toFixed(2)}%</small>}</td>
+                    <td>{c.target ? money(c.target) : '—'}</td>
+                    <td>{c.rewardRisk ? `${c.rewardRisk.toFixed(1)}R` : '—'}</td>
+                    <td>{size ? size.shares.toLocaleString('en-IN') : '—'}{size && <small>risk {money(size.riskAmount)}</small>}</td>
+                  </tr>
+                );
+              })}</tbody>
+            </table>
+            <p className="sd-footnote">{confirm.date} · checked {new Date(confirm.generatedAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })} · regime at the prior close: {confirm.regime ?? '—'}. Research only until the plan is backtested.</p>
+          </div>
+        )}
+      </section>
+
+      <h2 className="sd-morning-subhead">Early-session scan (separate idea)</h2>
       <div className="sd-morning-grid">
         <section className="sd-panel sd-morning-main">
           <div className="sd-section-title">
