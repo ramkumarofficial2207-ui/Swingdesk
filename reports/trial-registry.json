@@ -315,5 +315,79 @@
     },
     "verdict": "FAIL",
     "note": "Not pre-registered: the test years were already seen in trend-ride. Treat as a hint for paper trading, not proof."
+  },
+  {
+    "id": "accumulation-r",
+    "name": "Accumulation R: every universe stock-day (random baseline)",
+    "plan": "accumulation-breakout-plan.md",
+    "ranAt": "2026-11-20T18:50:57.877Z",
+    "kind": "exploration",
+    "discovery": {
+      "n": 131011,
+      "avg": -0.40799022935583734,
+      "dayClustered": -0.42869584088495727
+    },
+    "test": {
+      "n": 123565,
+      "avg": -0.5251688211537823,
+      "dayClustered": -0.6220521177664012
+    },
+    "verdict": "FAIL",
+    "note": "Measurement for the accumulation study, not a tradeable candidate; its verdict is ignored."
+  },
+  {
+    "id": "accumulation-w",
+    "name": "Accumulation W: every watchlist stock-day (measurement)",
+    "plan": "accumulation-breakout-plan.md",
+    "ranAt": "2026-11-20T18:53:19.371Z",
+    "kind": "exploration",
+    "discovery": {
+      "n": 527,
+      "avg": -0.2261276802341065,
+      "dayClustered": -0.3074441868267191
+    },
+    "test": {
+      "n": 349,
+      "avg": -0.6688253948637137,
+      "dayClustered": -0.370282290342168
+    },
+    "verdict": "FAIL",
+    "note": "Measurement for the accumulation study, not a tradeable candidate; its verdict is ignored."
+  },
+  {
+    "id": "accumulation-a",
+    "name": "Accumulation A: early dip while on the watchlist",
+    "plan": "accumulation-breakout-plan.md",
+    "ranAt": "2026-11-20T18:56:34.318Z",
+    "kind": "pre-registered",
+    "discovery": {
+      "n": 153,
+      "avg": -0.4923256741969526,
+      "dayClustered": -0.4559475617056692
+    },
+    "test": {
+      "n": 107,
+      "avg": -0.7573663002832259,
+      "dayClustered": -0.5935377677530124
+    },
+    "verdict": "FAIL"
+  },
+  {
+    "id": "accumulation-b",
+    "name": "Accumulation B: first volume surge after the watchlist",
+    "plan": "accumulation-breakout-plan.md",
+    "ranAt": "2026-11-20T18:59:12.931Z",
+    "kind": "pre-registered",
+    "discovery": {
+      "n": 64,
+      "avg": -0.04737361669663502,
+      "dayClustered": 0.1632033801027422
+    },
+    "test": {
+      "n": 41,
+      "avg": -0.36540059079683146,
+      "dayClustered": -0.30203560556675224
+    },
+    "verdict": "FAIL"
   }
 ]
