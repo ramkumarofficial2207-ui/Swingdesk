@@ -171,7 +171,7 @@ async function main(): Promise<void> {
         for (const row of rows) barsBy.set(row.symbol, [...(barsBy.get(row.symbol) ?? []), { time: istParts(row.startTime).time, open: row.open, high: row.high, low: row.low, close: row.close, volume: Number(row.volume) }]);
         const sessions: StockSession[] = symbols.map(symbol => ({ symbol, sector: industries.get(symbol) ?? 'Unknown', bars: barsBy.get(symbol) ?? [], baselineVolume: baselineFor(symbol, date) }));
         const { ready, clustered } = earlyFeatures(sessions);
-        if (ready.length < symbols.length * minCoverage) { skippedDays += 1; continue; }
+        if (ready.filter(r => r.relativeVolume !== null).length < symbols.length * minCoverage) { skippedDays += 1; continue; }
         const groups = groupCandidates(ready, clustered);
         for (const group of Object.keys(groups) as Group[]) {
             const list = group === 'primary'
