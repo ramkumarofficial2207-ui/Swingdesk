@@ -242,5 +242,23 @@
       "dayClustered": -1.0680936005892099
     },
     "verdict": "FAIL"
+  },
+  {
+    "id": "early-session-v1",
+    "name": "Early session v1 (volume + sector + opening-range breakout, intraday)",
+    "plan": "early-session-plan.md",
+    "ranAt": "2026-11-20T15:12:47.760Z",
+    "kind": "pre-registered",
+    "discovery": {
+      "n": 8,
+      "avg": -0.37248872139214306,
+      "dayClustered": -0.37248872139214306
+    },
+    "test": {
+      "n": 16,
+      "avg": -0.31228400856542055,
+      "dayClustered": -0.32002540848923117
+    },
+    "verdict": "FAIL"
   }
 ]
