@@ -173,7 +173,7 @@
   },
   {
     "id": "global-cues-g1",
-    "name": "Global and commodity cues G1 (|z| ≥ 1.5)",
+    "name": "Global and commodity cues G1 (|z| \u2265 1.5)",
     "plan": "global-cues-plan.md",
     "ranAt": "2026-11-19T15:08:00.657Z",
     "kind": "pre-registered",
@@ -191,7 +191,7 @@
   },
   {
     "id": "global-cues-g2",
-    "name": "Global and commodity cues G2 (|z| ≥ 2.0)",
+    "name": "Global and commodity cues G2 (|z| \u2265 2.0)",
     "plan": "global-cues-plan.md",
     "ranAt": "2026-11-19T15:09:00.962Z",
     "kind": "pre-registered",
@@ -240,6 +240,42 @@
       "n": 152,
       "avg": -0.8973237608119958,
       "dayClustered": -1.0680936005892099
+    },
+    "verdict": "FAIL"
+  },
+  {
+    "id": "monthly-momentum-m1",
+    "name": "Monthly momentum M1 (always invested)",
+    "plan": "monthly-momentum-plan.md",
+    "ranAt": "2026-11-19T15:27:42.044Z",
+    "kind": "pre-registered",
+    "discovery": {
+      "n": 514,
+      "avg": 2.8408781251667383,
+      "dayClustered": 2.615790746985472
+    },
+    "test": {
+      "n": 473,
+      "avg": 1.080705023967971,
+      "dayClustered": 1.3143330744727182
+    },
+    "verdict": "FAIL"
+  },
+  {
+    "id": "monthly-momentum-m2",
+    "name": "Monthly momentum M2 (only when NIFTY is above its 200-day average)",
+    "plan": "monthly-momentum-plan.md",
+    "ranAt": "2026-11-19T15:28:52.800Z",
+    "kind": "pre-registered",
+    "discovery": {
+      "n": 430,
+      "avg": 3.1768944415267066,
+      "dayClustered": 1.2977398755624643
+    },
+    "test": {
+      "n": 304,
+      "avg": 1.114176872657497,
+      "dayClustered": 1.4275534115311166
     },
     "verdict": "FAIL"
   },

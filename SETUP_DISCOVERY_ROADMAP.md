@@ -167,6 +167,21 @@ Per cue (information only): **copper falls → consumer durables** was positive 
 
 Most raw bulk "buys" in liquid stocks come from high-frequency and proprietary desks (Graviton, HRTI, XTX…), so only long-only institutions were counted. Primary F2 (active funds): test −0.90% per trade, day-clustered −1.07%, 0 of 3 test years positive, portfolio −10.5% CAGR. Against the control group these stocks did **worse** than the average stock by about 1–1.6% over 10 sessions in **both** periods. A likely reason: a fund's bulk buy is often the other side of a large seller exiting (promoter or private equity), and that supply keeps weighing on the price. That is a reason to be careful after such deals, not a long setup.
 
+### Final test (2026-11-19): monthly momentum ❌ FAIL by the pre-registered standard, but the first near miss
+
+[Report](reports/monthly-momentum.md). A basket of the 15 strongest stocks (risk-adjusted 12-1 momentum), rebalanced monthly, with costs charged on every holding every month. Primary M1 (always invested) **passed 8 of 11 checks**:
+
+- Test 2024–26: portfolio **+10.4% CAGR vs NIFTY +2.1%** over the same dates; +1.04% a month above the equal-weight "buy everything" control; 2 of 3 test years positive. Discovery 2021–23: +31.4% CAGR vs NIFTY +16.9%.
+- Failed: lower end of the 95% range −0.17% (44 test months are too few to be sure); −0.20% without the 5 best months; **max drawdown 30.1%** (limit 20%). M2 (NIFTY above its 200-day average) kept the drawdown to 17.2% but failed the same two certainty checks.
+
+Unlike every earlier study, the direction held in both periods and against the control. What is missing is **certainty and a tolerable drawdown**, not an edge in the average. Under A4, the only honest next evidence is **new live months**, never a re-tune on 2021–26.
+
+### Live check (2026-11-19): the scanner's own live picks, Aug–Oct 2026 ❌
+
+[Report](reports/live-setups-scoring.md). The old Railway production database was backed up (local CSV, git-ignored) and its 354 live-recorded setups were scored with rules committed beforehand. Buying at the next open and holding 5 sessions: **−1.53% per trade** (301 trades), 0.47% worse than the average stock on the same days. The app's own plan with a close-confirmed trigger: **−5.22% per trade** (46 trades). Live evidence agrees with the backtests: the scanner's setup types have no edge.
+
+The backup also holds bulk deals (to 2026-10-15) and FII/DII flows (to 2026-10-15) that fill most of the Aug–Oct gap; not imported yet. Delivery % turned out to be already complete locally for 2020–26 (an untested clue).
+
 **Stopping rule (agreed in advance):** if Phases 1–4 all fail, prediction work stops and SwingDesk becomes a discipline and journaling tool (sizing, stops, journal, paper record). This prevents endless searching, which is itself a source of false discoveries (A2).
 
 **Honest expectation:** no guarantee. A realistic success is a small positive average edge across many trades with controlled drawdown, not +5% every week.
