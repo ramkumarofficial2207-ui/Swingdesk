@@ -260,5 +260,41 @@
       "dayClustered": -0.32002540848923117
     },
     "verdict": "FAIL"
+  },
+  {
+    "id": "trend-ride-t1",
+    "name": "Trend ride T1 (trailing exit only)",
+    "plan": "trend-ride-plan.md",
+    "ranAt": "2026-11-20T17:30:49.684Z",
+    "kind": "pre-registered",
+    "discovery": {
+      "n": 233,
+      "avg": 0.8187397069323717,
+      "dayClustered": 0.81624099546279
+    },
+    "test": {
+      "n": 231,
+      "avg": -0.4404534315291468,
+      "dayClustered": -0.44172292954700065
+    },
+    "verdict": "FAIL"
+  },
+  {
+    "id": "trend-ride-t2",
+    "name": "Trend ride T2 (half off at +2R, then stop to entry)",
+    "plan": "trend-ride-plan.md",
+    "ranAt": "2026-11-20T17:32:31.154Z",
+    "kind": "pre-registered",
+    "discovery": {
+      "n": 233,
+      "avg": 0.5168416155516345,
+      "dayClustered": 0.5218608155325434
+    },
+    "test": {
+      "n": 231,
+      "avg": -0.30271406336920437,
+      "dayClustered": -0.27627954654545184
+    },
+    "verdict": "FAIL"
   }
 ]
