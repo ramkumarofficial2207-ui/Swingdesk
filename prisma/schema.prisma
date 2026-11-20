@@ -788,3 +788,21 @@ model GlobalMarketDaily {
   @@unique([series, date])
   @@index([date])
 }
+
+/// 5-minute NSE equity candles (Dhan intraday history) for early-session research.
+/// startTime is the candle's start instant; tradingDate is its IST session date.
+model IntradayCandle {
+  symbol      String
+  startTime   DateTime @db.Timestamptz(3)
+  tradingDate DateTime @db.Date
+  open        Float
+  high        Float
+  low         Float
+  close       Float
+  volume      BigInt
+  source      String   @default("DHAN_5M")
+  createdAt   DateTime @default(now())
+
+  @@id([symbol, startTime])
+  @@index([tradingDate, symbol])
+}
