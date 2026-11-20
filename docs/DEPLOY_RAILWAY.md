@@ -38,10 +38,12 @@ Copies MarketInstrument, DailyCandle (3.6 M rows, 2020→), CorporateAction, Fno
 ### 4. Create your sign-in
 
 ```bash
-DATABASE_URL='<public url>' SWINGDESK_OWNER_PASSWORD='<at least 10 characters>' npm run user:owner -- --email=you@example.com --name="Your name"
+DATABASE_URL='<public url>' npm run user:owner -- --email=you@example.com --name="Your name"
 ```
 
-The password comes from an environment variable so it never sits in a file. Re-run the same command to change it.
+It asks for the password twice at a hidden prompt, so the password never sits in a file or your shell history. Re-run the same command to change it.
+
+**Private alternative to a public URL:** `railway connect Postgres --tunnel-only --port 15432` (needs an SSH key registered with `railway ssh keys add`) opens a tunnel on your PC; use `postgresql://<PGUSER>:<PGPASSWORD>@127.0.0.1:15432/<PGDATABASE>` as the URL in steps 2–4. The database then never needs public networking.
 
 ### 5. App service
 
