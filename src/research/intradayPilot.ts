@@ -85,11 +85,14 @@ async function pilotSymbols(): Promise<Array<{ symbol: string; rank: number }>> 
     return pickSpread(rows.map(r => ({ symbol: r.symbol, rank: Number(r.rk) })), PILOT.stocks);
 }
 
-async function fetchSymbol(symbol: string, from: Date, to: Date): Promise<{ bars: number; error?: string }> {
+/** Fetch and store one symbol's 5-minute history. skipExisting: leave chunks that already have rows (resumable backfill). */
+export async function fetchSymbol(symbol: string, from: Date, to: Date, skipExisting = false): Promise<{ bars: number; skipped?: number; error?: string }> {
     const api = getDhanApiFromEnv();
     if (!api) throw new Error('Dhan is not configured (DHAN_CLIENT_ID / access token).');
     let total = 0;
+    let skipped = 0;
     for (const [start, end] of chunkRange(from, to, PILOT.chunkDays)) {
+        if (skipExisting && (await prisma.intradayCandle.count({ where: { symbol, startTime: { gte: start, lt: end } } })) > 0) { skipped += 1; continue; }
         let candles: Candle[] = [];
         for (let attempt = 0; ; attempt += 1) {
             try {
@@ -99,6 +102,7 @@ async function fetchSymbol(symbol: string, from: Date, to: Date): Promise<{ bars
                 const status = error?.response?.status;
                 const message = String(error?.message ?? error);
                 if (/401|authentication/i.test(message)) throw new Error('Dhan authentication failed (401): refresh DHAN_ACCESS_TOKEN.');
+                if (/Security ID not found/i.test(message)) return { bars: 0, error: 'not listed at Dhan today (delisted, renamed or not in EQ series)' };
                 if ((status === 429 || status >= 500 || !status) && attempt < 4) { await sleep(1_000 * 2 ** attempt); continue; }
                 return { bars: total, error: `${start.toISOString().slice(0, 10)}: ${status ?? ''} ${message}`.slice(0, 200) };
             }
@@ -119,7 +123,7 @@ async function fetchSymbol(symbol: string, from: Date, to: Date): Promise<{ bars
         }
         total += candles.length;
     }
-    return { bars: total };
+    return { bars: total, skipped };
 }
 
 const median = (xs: number[]) => {

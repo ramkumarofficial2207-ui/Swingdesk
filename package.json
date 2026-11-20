@@ -50,6 +50,7 @@
         "research:sector-momentum": "node --max-old-space-size=8192 -r ts-node/register/transpile-only src/research/cards/sectorMomentum.ts",
         "data:global": "ts-node --transpile-only src/globalMarketBackfill.ts",
         "data:intraday-pilot": "ts-node --transpile-only src/research/intradayPilot.ts",
+        "data:intraday-backfill": "node --max-old-space-size=6144 -r ts-node/register/transpile-only src/research/intradayBackfill.ts",
         "research:global-cues": "node --max-old-space-size=8192 -r ts-node/register/transpile-only src/research/cards/globalCues.ts",
         "research:institutional-buys": "node --max-old-space-size=8192 -r ts-node/register/transpile-only src/research/cards/institutionalBuys.ts"
     },
