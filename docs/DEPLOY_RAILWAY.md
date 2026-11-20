@@ -47,7 +47,7 @@ It asks for the password twice at a hidden prompt, so the password never sits in
 
 ### 5. App service
 
-New service → GitHub repo `Swingdesk`, branch `main`. Railway builds the `Dockerfile` (`railway.toml`). Variables:
+New service → GitHub repo `Swingdesk`, branch `main`. Railway builds the `Dockerfile`. Build, health check, pre-deploy and start settings live in `.railway/railway.ts` (Railway infrastructure-as-code; Railway retired `railway.toml` on 2026-12-01). Variables:
 
 | Variable | Value |
 |---|---|
@@ -78,6 +78,16 @@ Then Settings → Networking → Generate domain, and deploy.
 ### 7. Close the setup door
 
 Turn off the PostgreSQL **public** networking (TCP proxy) once seeding is done; the app uses the private network.
+
+## Changing deploy settings
+
+Edit `.railway/railway.ts`, then preview and apply from the project folder in PowerShell:
+
+```powershell
+$env:_ = 'C:\Users\RAM\AppData\Roaming\npm\node_modules\@railway\cli\bin\railway.exe'; railway config plan
+```
+
+then the same line with `railway config apply`. The `$env:_` part works around a Windows bug in the `railway` SDK's CLI version check: it cannot start the `railway.cmd` launcher and wrongly reports "requires Railway CLI 5.42.1 or newer". Variables stay managed in the Railway dashboard (`variables: unmanaged`), never in the repo.
 
 ## Updating later
 
