@@ -5,6 +5,7 @@ import 'dotenv/config';
 import { personalMode, isLocalWorkspaceRequest, openPersonalWorkspace } from './personalWorkspace';
 import { getWorkspaceHistory } from './workspaceChart';
 import { getEodResearchSignals } from './eodResearchSignals';
+import { loadEarlySession, runEarlySession } from './earlySession';
 import { getSetupEvidence } from './setupEvidenceService';
 import { assessWorkspaceReadiness } from './workspaceReadiness';
 import express, { Request, Response, NextFunction } from 'express';
@@ -1238,6 +1239,27 @@ app.get('/api/last', requireAuth, requireSubscription, async (req: Request, res:
 app.get('/api/research/eod-signals', requireAuth, requireSubscription, async (_req: Request, res: Response) => {
     try { res.setHeader('Cache-Control', 'no-store'); res.json({ success: true, data: await getEodResearchSignals() }); }
     catch (error: any) { res.status(503).json({ success: false, message: 'EOD research signals are unavailable.' }); }
+});
+
+// Early-session scan (research only): latest stored result, or run it now / replay a past date.
+app.get('/api/research/early-session', requireAuth, requireSubscription, async (req: Request, res: Response) => {
+    const date = typeof req.query.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(req.query.date) ? req.query.date : undefined;
+    res.setHeader('Cache-Control', 'no-store');
+    res.json({ success: true, data: loadEarlySession(date) });
+});
+
+let earlySessionRun: Promise<unknown> | null = null;
+app.post('/api/research/early-session/run', requireAuth, requireSubscription, async (req: Request, res: Response) => {
+    const date = typeof req.body?.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(req.body.date) ? req.body.date : undefined;
+    if (earlySessionRun) return res.status(409).json({ success: false, message: 'An early-session scan is already running.' });
+    try {
+        earlySessionRun = runEarlySession({ date });
+        res.json({ success: true, data: await earlySessionRun });
+    } catch (error: any) {
+        res.status(400).json({ success: false, message: error?.message || 'Early-session scan failed.' });
+    } finally {
+        earlySessionRun = null;
+    }
 });
 
 app.get('/api/research/setup-evidence', requireAuth, requireSubscription, async (_req: Request, res: Response) => {

@@ -108,22 +108,26 @@ export async function fetchSymbol(symbol: string, from: Date, to: Date, skipExis
             }
         }
         await sleep(PILOT.requestGapMs);
-        if (!candles.length) continue;
-        for (let i = 0; i < candles.length; i += 500) {
-            const batch = candles.slice(i, i + 500);
-            await prisma.$executeRaw(Prisma.sql`
-                INSERT INTO "IntradayCandle" ("symbol", "startTime", "tradingDate", "open", "high", "low", "close", "volume")
-                VALUES ${Prisma.join(batch.map(c => {
-                    const start = new Date(c.timestamp ?? c.date);
-                    return Prisma.sql`(${symbol}, ${start}, ${new Date(`${istParts(start).date}T00:00:00Z`)}, ${c.open}, ${c.high}, ${c.low}, ${c.close}, ${BigInt(Math.round(c.volume))})`;
-                }))}
-                ON CONFLICT ("symbol", "startTime") DO UPDATE SET
-                    "open" = EXCLUDED."open", "high" = EXCLUDED."high", "low" = EXCLUDED."low",
-                    "close" = EXCLUDED."close", "volume" = EXCLUDED."volume", "tradingDate" = EXCLUDED."tradingDate"`);
-        }
+        await storeIntradayCandles(symbol, candles);
         total += candles.length;
     }
     return { bars: total, skipped };
+}
+
+/** Upsert Dhan 5-minute candles for one symbol. */
+export async function storeIntradayCandles(symbol: string, candles: Candle[]): Promise<void> {
+    for (let i = 0; i < candles.length; i += 500) {
+        const batch = candles.slice(i, i + 500);
+        await prisma.$executeRaw(Prisma.sql`
+            INSERT INTO "IntradayCandle" ("symbol", "startTime", "tradingDate", "open", "high", "low", "close", "volume")
+            VALUES ${Prisma.join(batch.map(c => {
+                const start = new Date(c.timestamp ?? c.date);
+                return Prisma.sql`(${symbol}, ${start}, ${new Date(`${istParts(start).date}T00:00:00Z`)}, ${c.open}, ${c.high}, ${c.low}, ${c.close}, ${BigInt(Math.round(c.volume))})`;
+            }))}
+            ON CONFLICT ("symbol", "startTime") DO UPDATE SET
+                "open" = EXCLUDED."open", "high" = EXCLUDED."high", "low" = EXCLUDED."low",
+                "close" = EXCLUDED."close", "volume" = EXCLUDED."volume", "tradingDate" = EXCLUDED."tradingDate"`);
+    }
 }
 
 const median = (xs: number[]) => {
