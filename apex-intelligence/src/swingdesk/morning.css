@@ -1,0 +1,27 @@
+.sd-morning-grid{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:19px;align-items:start}
+.sd-morning-main{padding:22px 22px 18px}
+.sd-morning-main .sd-section-title>span{font-size:10px}
+.sd-morning h1 .sd-trust-pill{font-size:10px;letter-spacing:0}
+.sd-morning .sd-empty{display:flex;flex-direction:column;align-items:center;gap:8px}
+.sd-morning .sd-empty p{max-width:460px}
+.sd-morning td{color:#3f5a48}
+.sd-morning td:first-child .sd-text-button{font-weight:600;font-size:11px}
+.sd-morning-rules{margin:0;padding-left:16px;font-size:10px;line-height:1.8;color:#6f8274}
+.sd-morning-replay{display:flex;gap:8px}
+.sd-morning-replay input{flex:1;min-width:0;border:1px solid #e4eae2;border-radius:6px;padding:7px 8px;font-size:11px;color:#3f5a48}
+.sd-gate{display:flex;flex-direction:column;align-items:flex-start;gap:6px;padding:0 17px 10px;font-size:10px;color:#839087}
+.sd-gate label{display:flex;align-items:center;gap:6px;white-space:nowrap}
+.sd-gate .sd-text-button{font-size:10px}
+.sd-row-tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:3px}
+.sd-row-tags .sd-trust-pill{margin-top:0}
+.sd-stop-chip{display:inline-flex;align-items:center;padding:2px 6px;border-radius:999px;font-size:9px;color:#4f6b58;background:#eef4ef;border:1px solid #dbe6dd;white-space:nowrap}
+.sd-stop-chip.wide{color:#9a5b4e;background:#fbf0ec;border-color:#efd5cc}
+.sd-plan-warn strong{color:#9a5b4e}
+@media(max-width:1100px){.sd-morning-grid{grid-template-columns:1fr}}
+@media(max-width:560px){.sd-morning-main{padding:16px}.sd-gate{flex-wrap:wrap}}
+.sd-confirm-panel{margin-bottom:19px}
+.sd-confirm-panel .sd-heading-actions{margin:10px 0 6px}
+.sd-morning-subhead{font-size:13px;font-weight:650;color:#30473c;margin:4px 0 12px!important}
+/* workspace.css moves .sd-right-column into grid column 2 below 1220px; the Morning page has its own grid. */
+.sd-morning-grid>.sd-right-column{grid-column:auto;display:flex;flex-direction:column}
+@media(max-width:1220px){.sd-morning-grid{grid-template-columns:1fr}.sd-morning-grid>.sd-right-column{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}}

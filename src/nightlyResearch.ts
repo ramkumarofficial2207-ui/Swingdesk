@@ -5,6 +5,7 @@ import { backfillGlobalMarkets } from './globalMarketBackfill';
 import { syncInstitutionalFlowFromOfficialReport } from './institutionalFlowService';
 import { syncNseDailyBlockDeals, syncNseDailyBulkDeals } from './services/institutionalService';
 import { check, frozenDates, isFrozen, make } from './research/forwardCheck';
+import { runAutoPaperNightly } from './nightlyAutoPaper';
 
 /**
  * Nightly research step, run after the finalized post-market scan
@@ -14,6 +15,7 @@ import { check, frozenDates, isFrozen, make } from './research/forwardCheck';
  *  1. Data freshness: logs every stale feed.
  *  2. Forward check: freezes this close's rule-based lists (never overwrites)
  *     and re-scores the frozen lists from the last 10 signal dates.
+ *  3. F&O open interest top-up, then auto paper trading (src/autoPaper.ts).
  *
  *   npm run nightly:research
  */
@@ -38,6 +40,8 @@ export async function runNightlyResearch(): Promise<void> {
     if (!isFrozen(candles.latest)) await make(candles.latest);
     for (const date of frozenDates().filter(date => date < candles.latest!).slice(-10)) await check(date);
     console.log(`[Nightly] Forward checks updated through ${candles.latest}.`);
+    // F&O open interest top-up, then auto paper trading (single-flight; the 19:15 schedule runs it too).
+    await runAutoPaperNightly().catch(error => console.warn('[Nightly] Auto paper trading failed:', error?.message ?? error));
 }
 
 if (require.main === module) {

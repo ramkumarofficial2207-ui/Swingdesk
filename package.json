@@ -47,12 +47,21 @@
         "research:harness-check": "node --max-old-space-size=6144 -r ts-node/register/transpile-only src/research/cards/uptrendDipCheck.ts",
         "data:freshness": "ts-node --transpile-only src/dataFreshness.ts",
         "nightly:research": "node --max-old-space-size=4096 -r ts-node/register/transpile-only src/nightlyResearch.ts",
+        "research:early-session": "node --max-old-space-size=8192 -r ts-node/register/transpile-only src/research/earlySessionStudy.ts",
         "research:sector-momentum": "node --max-old-space-size=8192 -r ts-node/register/transpile-only src/research/cards/sectorMomentum.ts",
         "data:global": "ts-node --transpile-only src/globalMarketBackfill.ts",
+        "data:intraday-pilot": "ts-node --transpile-only src/research/intradayPilot.ts",
+        "data:intraday-backfill": "node --max-old-space-size=6144 -r ts-node/register/transpile-only src/research/intradayBackfill.ts",
         "research:global-cues": "node --max-old-space-size=8192 -r ts-node/register/transpile-only src/research/cards/globalCues.ts",
         "research:institutional-buys": "node --max-old-space-size=8192 -r ts-node/register/transpile-only src/research/cards/institutionalBuys.ts",
         "research:monthly-momentum": "node --max-old-space-size=8192 -r ts-node/register/transpile-only src/research/cards/monthlyMomentum.ts",
-        "research:score-live-setups": "node --max-old-space-size=6144 -r ts-node/register/transpile-only src/research/scoreLiveSetups.ts"
+        "research:score-live-setups": "node --max-old-space-size=6144 -r ts-node/register/transpile-only src/research/scoreLiveSetups.ts",
+        "research:trend-ride": "node --max-old-space-size=8192 -r ts-node/register/transpile-only src/research/cards/trendRide.ts",
+        "fno:backfill": "ts-node --transpile-only src/fnoBhavcopy.ts",
+        "user:owner": "ts-node --transpile-only src/createOwner.ts",
+        "research:accumulation": "node --max-old-space-size=8192 -r ts-node/register/transpile-only src/research/cards/accumulationBreakout.ts",
+        "paper:auto": "node --max-old-space-size=4096 -r ts-node/register/transpile-only src/autoPaper.ts",
+        "paper:nightly": "node --max-old-space-size=4096 -r ts-node/register/transpile-only src/nightlyAutoPaper.ts"
     },
     "dependencies": {
         "@anthropic-ai/sdk": "^0.78.0",

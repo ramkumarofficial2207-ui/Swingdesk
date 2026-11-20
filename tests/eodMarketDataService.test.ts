@@ -20,28 +20,31 @@ describe('finalized NSE EOD ingestion', () => {
             .toContain('/2023/JAN/cm02JAN2023bhav.csv.zip');
     });
 
-    it('parses EQ delivery rows and ignores other series', () => {
+    it('parses EQ and trade-to-trade delivery rows and ignores other series', () => {
         const report = [
             'Security Wise Delivery Position - Compulsory Rolling Settlement',
             '20,1,RELIANCE,EQ,1000,700,70.00',
-            '20,2,TESTBE,BE,100,80,80.00',
+            '20,2,TESTBE,BE,100,100,100.00',
+            '20,3,SMESTOCK,SM,100,90,90.00',
         ].join('\n');
         const rows = parseNseDeliveryReport(report);
         expect(rows.get('RELIANCE')).toEqual({ quantity: 700, percentage: 70 });
-        expect(rows.has('TESTBE')).toBe(false);
+        expect(rows.get('TESTBE')).toEqual({ quantity: 100, percentage: 100 });
+        expect(rows.has('SMESTOCK')).toBe(false);
     });
 
     it('parses finalized UDiFF OHLCV and merges delivery data', () => {
         const csv = [
             'TradDt,BizDt,Sgmt,Src,FinInstrmTp,FinInstrmId,ISIN,TckrSymb,SctySrs,OpnPric,HghPric,LwPric,ClsPric,PrvsClsgPric,TtlTradgVol,TtlTrfVal,TtlNbOfTxsExctd',
             '2026-08-07,2026-08-07,CM,NSE,STK,2885,INE002A01018,RELIANCE,EQ,1400,1450,1390,1440,1395,1000000,1440000000,250000',
-            '2026-08-07,2026-08-07,CM,NSE,STK,999,TEST,IGNORED,BE,10,11,9,10,10,100,1000,10',
+            '2026-08-07,2026-08-07,CM,NSE,STK,999,TEST,IGNORED,SM,10,11,9,10,10,100,1000,10',
         ].join('\n');
         const delivery = new Map([['RELIANCE', { quantity: 650000, percentage: 65 }]]);
         const rows = parseNseUdiffBhavcopy(csv, delivery);
         expect(rows).toHaveLength(1);
         expect(rows[0]).toMatchObject({
             symbol: 'RELIANCE',
+            series: 'EQ',
             securityId: '2885',
             tradingDate: '2026-08-07',
             close: 1440,
@@ -53,11 +56,29 @@ describe('finalized NSE EOD ingestion', () => {
         });
     });
 
+    it('keeps trade-to-trade (BE/BZ) rows tagged with their series, EQ winning duplicates', () => {
+        const head = 'TradDt,BizDt,Sgmt,Src,FinInstrmTp,FinInstrmId,ISIN,TckrSymb,SctySrs,OpnPric,HghPric,LwPric,ClsPric,PrvsClsgPric,TtlTradgVol,TtlTrfVal,TtlNbOfTxsExctd';
+        const row = (symbol: string, series: string, close: number) =>
+            `2026-08-07,2026-08-07,CM,NSE,STK,1,INE000A01010,${symbol},${series},${close},${close},${close},${close},${close},100,1000,10`;
+        const rows = parseNseUdiffBhavcopy([head, row('ASMSTOCK', 'BE', 50), row('GSMSTOCK', 'BZ', 30), row('BOTH', 'BE', 9), row('BOTH', 'EQ', 10)].join('\n'));
+        const bySymbol = new Map(rows.map(r => [r.symbol, r]));
+        expect(rows).toHaveLength(3);
+        expect(bySymbol.get('ASMSTOCK')?.series).toBe('BE');
+        expect(bySymbol.get('GSMSTOCK')?.series).toBe('BZ');
+        expect(bySymbol.get('BOTH')).toMatchObject({ series: 'EQ', close: 10 });
+
+        const legacy = parseNseLegacyBhavcopy([
+            'SYMBOL,SERIES,OPEN,HIGH,LOW,CLOSE,LAST,PREVCLOSE,TOTTRDQTY,TOTTRDVAL,TIMESTAMP,TOTALTRADES,ISIN',
+            'ASMSTOCK,BE,10,11,9,10,10,10,100,1000,02-JAN-2023,10,INE000A01010',
+        ].join('\n'));
+        expect(legacy[0]).toMatchObject({ symbol: 'ASMSTOCK', series: 'BE' });
+    });
+
     it('parses legacy EQ Bhavcopy rows and delivery data', () => {
         const csv = [
             'SYMBOL,SERIES,OPEN,HIGH,LOW,CLOSE,LAST,PREVCLOSE,TOTTRDQTY,TOTTRDVAL,TIMESTAMP,TOTALTRADES,ISIN',
             'RELIANCE,EQ,2500,2550,2490,2540,2539,2495,1000000,2540000000,02-Jan-23,100000,INE002A01018',
-            'TESTBE,BE,10,11,9,10,10,10,100,1000,02-JAN-2023,10,TEST',
+            'TESTGB,GB,10,11,9,10,10,10,100,1000,02-JAN-2023,10,TEST',
         ].join('\n');
         const delivery = new Map([['RELIANCE', { quantity: 700000, percentage: 70 }]]);
         const rows = parseNseLegacyBhavcopy(csv, delivery);

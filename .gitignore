@@ -16,6 +16,8 @@ prisma/dev.db
 # Runtime-generated market and analytics data
 data/*
 !data/.gitkeep
+# Industry labels used by the strategies on the server too
+!data/nifty500-constituents.csv
 
 # Build outputs
 dist/
