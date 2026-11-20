@@ -27,7 +27,14 @@ async function main(): Promise<void> {
     // Dhan Data APIs allow about 5 requests a second; each worker waits 250 ms between requests.
     const worker = async () => {
         for (let symbol = queue.shift(); symbol; symbol = queue.shift()) {
-            const result = await fetchSymbol(symbol, start, end, true);
+            let result = await fetchSymbol(symbol, start, end, true);
+            // Dhan's historical-data cap returns 429 for a while once tripped; wait it out instead of skipping stocks.
+            for (let wait = 0; result.error?.includes('429') && wait < 36; wait += 1) {
+                bars += result.bars;
+                console.log(`[Backfill] ${symbol}: Dhan rate limit, waiting 10 minutes (attempt ${wait + 1})`);
+                await new Promise(resolve => setTimeout(resolve, 10 * 60_000));
+                result = await fetchSymbol(symbol, start, end, true);
+            }
             bars += result.bars;
             done += 1;
             if (result.error) problems.push(`| ${symbol} | ${result.error} |`);
