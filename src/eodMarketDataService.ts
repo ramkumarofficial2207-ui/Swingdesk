@@ -19,6 +19,8 @@ const NSE_HEADERS = {
 export interface NseEodRecord {
     source: 'NSE_UDIFF' | 'NSE_LEGACY' | 'NSE_INDEX';
     symbol: string;
+    /** NSE series: EQ (normal), BE/BZ (trade-to-trade, often under surveillance) or INDEX. */
+    series: string;
     securityId: string | null;
     isin: string | null;
     tradingDate: string;
@@ -151,6 +153,24 @@ function parseLegacyDate(value: unknown): string | null {
     return `${year}-${String(month + 1).padStart(2, '0')}-${match[1].padStart(2, '0')}`;
 }
 
+/**
+ * Equity series kept from the Bhavcopy. EQ is normal trading; BE and BZ are
+ * trade-to-trade segments a stock is moved into (often under ASM/GSM
+ * surveillance). Dropping BE/BZ left months-long holes in a stock's history,
+ * so research treated the next stored bar as the next session.
+ */
+export const TRADED_EQUITY_SERIES = new Set(['EQ', 'BE', 'BZ']);
+
+/** One row per symbol and date; EQ wins if NSE lists a symbol in two series. */
+function oneRowPerSymbol(records: NseEodRecord[]): NseEodRecord[] {
+    const bySymbol = new Map<string, NseEodRecord>();
+    for (const record of records) {
+        const existing = bySymbol.get(record.symbol);
+        if (!existing || (existing.series !== 'EQ' && record.series === 'EQ')) bySymbol.set(record.symbol, record);
+    }
+    return [...bySymbol.values()];
+}
+
 export function parseNseDeliveryReport(text: string): Map<string, { quantity: number; percentage: number }> {
     const result = new Map<string, { quantity: number; percentage: number }>();
     for (const line of text.split(/\r?\n/)) {
@@ -160,8 +180,8 @@ export function parseNseDeliveryReport(text: string): Map<string, { quantity: nu
         const series = String(columns[3] ?? '').trim().toUpperCase();
         const quantity = finiteNumber(columns[5]);
         const percentage = finiteNumber(columns[6]);
-        if (symbol && series === 'EQ' && quantity >= 0 && percentage >= 0) {
-            result.set(symbol, { quantity, percentage });
+        if (symbol && TRADED_EQUITY_SERIES.has(series) && quantity >= 0 && percentage >= 0) {
+            if (series === 'EQ' || !result.has(symbol)) result.set(symbol, { quantity, percentage });
         }
     }
     return result;
@@ -185,7 +205,7 @@ export function parseNseUdiffBhavcopy(
         const series = String(row.SctySrs ?? '').toUpperCase();
         const symbol = String(row.TckrSymb ?? '').trim().toUpperCase();
         const tradingDate = String(row.TradDt ?? '').slice(0, 10);
-        if (segment !== 'CM' || instrumentType !== 'STK' || series !== 'EQ' || !symbol) continue;
+        if (segment !== 'CM' || instrumentType !== 'STK' || !TRADED_EQUITY_SERIES.has(series) || !symbol) continue;
         if (!/^\d{4}-\d{2}-\d{2}$/.test(tradingDate)) continue;
 
         const open = positivePrice(row.OpnPric);
@@ -198,6 +218,7 @@ export function parseNseUdiffBhavcopy(
         records.push({
             source: 'NSE_UDIFF',
             symbol,
+            series,
             securityId: String(row.FinInstrmId ?? '').trim() || null,
             isin: String(row.ISIN ?? '').trim() || null,
             tradingDate,
@@ -213,7 +234,7 @@ export function parseNseUdiffBhavcopy(
             deliveryPct: deliveryRow?.percentage ?? null,
         });
     }
-    return records;
+    return oneRowPerSymbol(records);
 }
 
 export function parseNseLegacyBhavcopy(
@@ -232,7 +253,7 @@ export function parseNseLegacyBhavcopy(
         const symbol = String(row.SYMBOL ?? '').trim().toUpperCase();
         const series = String(row.SERIES ?? '').trim().toUpperCase();
         const tradingDate = parseLegacyDate(row.TIMESTAMP);
-        if (!symbol || series !== 'EQ' || !tradingDate) continue;
+        if (!symbol || !TRADED_EQUITY_SERIES.has(series) || !tradingDate) continue;
 
         const open = positivePrice(row.OPEN);
         const high = positivePrice(row.HIGH);
@@ -244,6 +265,7 @@ export function parseNseLegacyBhavcopy(
         records.push({
             source: 'NSE_LEGACY',
             symbol,
+            series,
             securityId: null,
             isin: String(row.ISIN ?? '').trim() || null,
             tradingDate,
@@ -259,7 +281,7 @@ export function parseNseLegacyBhavcopy(
             deliveryPct: deliveryRow?.percentage ?? null,
         });
     }
-    return records;
+    return oneRowPerSymbol(records);
 }
 
 export function parseNseIndexReport(csvText: string, expectedTradingDate?: string): NseEodRecord[] {
@@ -285,6 +307,7 @@ export function parseNseIndexReport(csvText: string, expectedTradingDate?: strin
     return [{
         source: 'NSE_INDEX',
         symbol: 'NIFTY_50',
+        series: 'INDEX',
         securityId: null,
         isin: null,
         tradingDate,
@@ -345,11 +368,25 @@ export async function fetchLatestFinalNseEod(reference = new Date()): Promise<{ 
     throw new Error(`No finalized NSE Bhavcopy found in the lookback window (${errors.join('; ')}).`);
 }
 
-export async function upsertNseRecords(records: NseEodRecord[]): Promise<void> {
+/**
+ * historical: rows from an old archive (e.g. the BE/BZ backfill). Instruments
+ * that already exist are left untouched, so an old row cannot mark a delisted
+ * stock active again; new ones are created inactive.
+ */
+export async function upsertNseRecords(records: NseEodRecord[], options: { historical?: boolean } = {}): Promise<void> {
     const now = new Date();
     for (let index = 0; index < records.length; index += 200) {
         const batch = records.slice(index, index + 200);
-        await prisma.$executeRaw(Prisma.sql`
+        if (options.historical) {
+            await prisma.$executeRaw(Prisma.sql`
+                INSERT INTO "MarketInstrument"
+                    ("symbol", "securityId", "exchangeSegment", "instrumentType", "series", "isin", "isActive", "lastSeenAt", "createdAt", "updatedAt")
+                VALUES ${Prisma.join(batch.map(row => Prisma.sql`
+                    (${row.symbol}, ${row.securityId}, 'NSE_EQ', 'EQUITY', 'EQ', ${row.isin}, false, ${now}, ${now}, ${now})
+                `))}
+                ON CONFLICT ("symbol") DO NOTHING
+            `);
+        } else await prisma.$executeRaw(Prisma.sql`
             INSERT INTO "MarketInstrument"
                 ("symbol", "securityId", "exchangeSegment", "instrumentType", "series", "isin", "isActive", "lastSeenAt", "createdAt", "updatedAt")
             VALUES ${Prisma.join(batch.map(row => Prisma.sql`
@@ -368,11 +405,12 @@ export async function upsertNseRecords(records: NseEodRecord[]): Promise<void> {
 
         await prisma.$executeRaw(Prisma.sql`
             INSERT INTO "DailyCandle"
-                ("symbol", "tradingDate", "open", "high", "low", "close", "previousClose", "volume", "turnoverCr", "totalTrades", "deliveryQty", "deliveryPct", "source", "isFinal", "createdAt", "updatedAt")
+                ("symbol", "tradingDate", "series", "open", "high", "low", "close", "previousClose", "volume", "turnoverCr", "totalTrades", "deliveryQty", "deliveryPct", "source", "isFinal", "createdAt", "updatedAt")
             VALUES ${Prisma.join(batch.map(row => Prisma.sql`
-                (${row.symbol}, ${dateKeyToUtcDate(row.tradingDate)}, ${row.open}, ${row.high}, ${row.low}, ${row.close}, ${row.previousClose}, ${BigInt(row.volume)}, ${row.turnoverCr}, ${row.totalTrades}, ${row.deliveryQty == null ? null : BigInt(row.deliveryQty)}, ${row.deliveryPct}, ${row.source}, true, ${now}, ${now})
+                (${row.symbol}, ${dateKeyToUtcDate(row.tradingDate)}, ${row.series}, ${row.open}, ${row.high}, ${row.low}, ${row.close}, ${row.previousClose}, ${BigInt(row.volume)}, ${row.turnoverCr}, ${row.totalTrades}, ${row.deliveryQty == null ? null : BigInt(row.deliveryQty)}, ${row.deliveryPct}, ${row.source}, true, ${now}, ${now})
             `))}
             ON CONFLICT ("symbol", "tradingDate") DO UPDATE SET
+                "series" = EXCLUDED."series",
                 "open" = EXCLUDED."open",
                 "high" = EXCLUDED."high",
                 "low" = EXCLUDED."low",
@@ -438,7 +476,8 @@ async function ensureUniverseHistory(records: NseEodRecord[], runId: string): Pr
     const minimumCandles = envInt('EOD_MIN_CANDLES', 220, 200, 500);
     const universeLimit = envInt('SCANNER_UNIVERSE_LIMIT', 500, 50, 1_500);
     const selectedRecords = [...records]
-        .filter(row => inScannerUniverse(row.symbol) && row.close >= 20 && row.turnoverCr >= 2 && row.totalTrades >= 300)
+        // Trade-to-trade (BE/BZ) stocks are stored for continuous history but never scanned.
+        .filter(row => row.series === 'EQ' && inScannerUniverse(row.symbol) && row.close >= 20 && row.turnoverCr >= 2 && row.totalTrades >= 300)
         .sort((a, b) => b.turnoverCr - a.turnoverCr || b.totalTrades - a.totalTrades)
         .slice(0, universeLimit);
     const symbols = selectedRecords.map(row => row.symbol);
@@ -674,6 +713,7 @@ export async function loadPersistedScannerDataset(
             ...(membership ? { symbol: { in: membership } } : {}),
             tradingDate: asOf,
             isFinal: true,
+            series: 'EQ',
             close: { gte: 20 },
             turnoverCr: { gte: 2 },
             totalTrades: { gte: 300 },

@@ -5,7 +5,11 @@ import 'dotenv/config';
 import { personalMode, isLocalWorkspaceRequest, openPersonalWorkspace } from './personalWorkspace';
 import { getWorkspaceHistory } from './workspaceChart';
 import { getEodResearchSignals } from './eodResearchSignals';
+import { loadEarlySession, runEarlySession } from './earlySession';
+import { catalystsFor, currentRegime, exitAdviceFor, runMorningConfirmation } from './tradingDesk';
 import { getSetupEvidence } from './setupEvidenceService';
+import { getAutoPaperView } from './autoPaper';
+import { autoPaperRunning, runAutoPaperNightly } from './nightlyAutoPaper';
 import { assessWorkspaceReadiness } from './workspaceReadiness';
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
@@ -490,6 +494,11 @@ app.get('/api/broker/status', requireAuth, (_req: Request, res: Response) => {
 
 // POST /api/auth/register
 app.post('/api/auth/register', authLimiter, validateBody(registerSchema), async (req: Request, res: Response) => {
+    // Hosted SwingDesk is a single-owner app: accounts are created with `npm run user:owner`.
+    if (process.env.ALLOW_REGISTRATION !== 'true') {
+        res.status(403).json({ success: false, message: 'Registration is closed.' });
+        return;
+    }
     const { name } = req.body || {};
     const email = normalizeEmail(req.body?.email);
     const mobileNumber = normalizeMobileNumber(req.body?.mobileNumber);
@@ -1239,6 +1248,75 @@ app.get('/api/research/eod-signals', requireAuth, requireSubscription, async (_r
     try { res.setHeader('Cache-Control', 'no-store'); res.json({ success: true, data: await getEodResearchSignals() }); }
     catch (error: any) { res.status(503).json({ success: false, message: 'EOD research signals are unavailable.' }); }
 });
+
+// Trading desk (docs/TRADING_DESK_ARCHITECTURE.md): regime gate, catalysts, morning confirmation, exit advice.
+const SYMBOL_RE = /^[A-Z0-9&_-]{1,20}$/;
+app.get('/api/research/regime', requireAuth, requireSubscription, async (_req: Request, res: Response) => {
+    try { res.setHeader('Cache-Control', 'no-store'); res.json({ success: true, data: await currentRegime() }); }
+    catch (error: any) { res.status(503).json({ success: false, message: 'Market regime is unavailable.' }); }
+});
+
+app.get('/api/research/catalysts', requireAuth, requireSubscription, async (req: Request, res: Response) => {
+    const symbols = String(req.query.symbols ?? '').toUpperCase().split(',').map(s => s.trim()).filter(s => SYMBOL_RE.test(s)).slice(0, 100);
+    try { res.json({ success: true, data: await catalystsFor(symbols) }); }
+    catch (error: any) { res.status(503).json({ success: false, message: 'Catalysts are unavailable.' }); }
+});
+
+let morningConfirmRun = false;
+app.post('/api/research/morning-confirm', requireAuth, requireSubscription, async (req: Request, res: Response) => {
+    const symbols = Array.isArray(req.body?.symbols) ? req.body.symbols.map((s: unknown) => String(s).toUpperCase()).filter((s: string) => SYMBOL_RE.test(s)) : [];
+    const date = typeof req.body?.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(req.body.date) ? req.body.date : undefined;
+    if (!symbols.length) return res.status(400).json({ success: false, message: 'No watchlist symbols to confirm.' });
+    if (morningConfirmRun) return res.status(409).json({ success: false, message: 'A morning confirmation is already running.' });
+    morningConfirmRun = true;
+    try { res.json({ success: true, data: await runMorningConfirmation(symbols, { date }) }); }
+    catch (error: any) { res.status(400).json({ success: false, message: error?.message || 'Morning confirmation failed.' }); }
+    finally { morningConfirmRun = false; }
+});
+
+app.get('/api/portfolio/exit-advice', requireAuth, async (req: AuthRequest, res: Response) => {
+    try { res.setHeader('Cache-Control', 'no-store'); res.json({ success: true, data: await exitAdviceFor(req.userId!) }); }
+    catch (error: any) { res.status(503).json({ success: false, message: 'Exit advice is unavailable.' }); }
+});
+
+// Early-session scan (research only): latest stored result, or run it now / replay a past date.
+app.get('/api/research/early-session', requireAuth, requireSubscription, async (req: Request, res: Response) => {
+    const date = typeof req.query.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(req.query.date) ? req.query.date : undefined;
+    res.setHeader('Cache-Control', 'no-store');
+    res.json({ success: true, data: loadEarlySession(date) });
+});
+
+let earlySessionRun: Promise<unknown> | null = null;
+app.post('/api/research/early-session/run', requireAuth, requireSubscription, async (req: Request, res: Response) => {
+    const date = typeof req.body?.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(req.body.date) ? req.body.date : undefined;
+    if (earlySessionRun) return res.status(409).json({ success: false, message: 'An early-session scan is already running.' });
+    try {
+        earlySessionRun = runEarlySession({ date });
+        res.json({ success: true, data: await earlySessionRun });
+    } catch (error: any) {
+        res.status(400).json({ success: false, message: error?.message || 'Early-session scan failed.' });
+    } finally {
+        earlySessionRun = null;
+    }
+});
+
+// Auto paper trading (src/autoPaper.ts): scorecard, picks and every paper trade. Never places orders.
+app.get('/api/research/auto-paper', requireAuth, requireSubscription, async (_req: Request, res: Response) => {
+    try { res.setHeader('Cache-Control', 'no-store'); res.json({ success: true, data: { ...(await getAutoPaperView()), running: autoPaperRunning() } }); }
+    catch (error: any) { res.status(503).json({ success: false, message: 'Auto paper trading is unavailable.' }); }
+});
+
+app.post('/api/research/auto-paper/run', requireAuth, requireSubscription, async (_req: Request, res: Response) => {
+    if (autoPaperRunning()) return res.status(409).json({ success: false, message: 'An auto paper update is already running.' });
+    try { res.json({ success: true, data: { message: await runAutoPaperNightly() } }); }
+    catch (error: any) { res.status(400).json({ success: false, message: error?.message || 'Auto paper update failed.' }); }
+});
+
+// After the close (NSE F&O and delivery files are out by ~19:00 IST): candles, F&O OI, then paper trades.
+// Runs in every mode, independent of ENABLE_AUTO_SCAN; set ENABLE_AUTO_PAPER=false to turn it off.
+if (process.env.ENABLE_AUTO_PAPER !== 'false') cron.schedule('15 19 * * 1-5', () => {
+    void runAutoPaperNightly().catch(error => console.warn('[AutoPaper] Evening run failed:', error?.message || error));
+}, { timezone: 'Asia/Kolkata' });
 
 app.get('/api/research/setup-evidence', requireAuth, requireSubscription, async (_req: Request, res: Response) => {
     try { res.setHeader('Cache-Control', 'no-store'); res.json({ success: true, data: await getSetupEvidence() }); }

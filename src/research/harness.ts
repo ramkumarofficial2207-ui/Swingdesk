@@ -29,6 +29,15 @@ export interface ExitPlan {
     horizon: number;
     /** Skip the trade if the next open is more than this % above the signal close. */
     maxGapUpPct?: number;
+    /**
+     * Buy-stop price for the entry session only: fill at the open if it is at or above,
+     * at the trigger if the high reaches it, otherwise no trade.
+     */
+    entryTrigger?: number;
+    /** After a close below its N-session average, sell at the next tradeable open. */
+    trailSma?: number;
+    /** Sell `fraction` at entry + atR × stop distance; the rest's stop moves to entry from the next session. */
+    partial?: { atR: number; fraction: number };
 }
 
 export interface Candidate {
@@ -53,11 +62,13 @@ export interface HarnessTrade {
     exitIndex: number;
     entry: number;
     exit: number;
-    outcome: 'TARGET' | 'STOP' | 'TIME';
+    outcome: 'TARGET' | 'STOP' | 'TIME' | 'TRAIL';
     netPct: number;
     /** The exit had to wait for a tradeable bar (suspension or locked price). */
     delayedExit: boolean;
     stopPct: number | null;
+    /** A partial exit filled before the final exit (see ExitPlan.partial). */
+    partialFilled?: boolean;
 }
 
 /** A bar you could actually trade on: has volume and is not a single locked price. */
@@ -66,8 +77,15 @@ export function isTradeable(bar: PriceBar): boolean {
     return !(bar.high === bar.low && bar.open === bar.close && bar.high === bar.close);
 }
 
+/** Entry price for a plan on the entry bar, or null when a buy-stop is not reached. */
+export function entryFill(bar: PriceBar, plan: ExitPlan): number | null {
+    if (plan.entryTrigger === undefined) return bar.open;
+    if (bar.open >= plan.entryTrigger) return bar.open;
+    return bar.high >= plan.entryTrigger ? plan.entryTrigger : null;
+}
+
 /**
- * Simulate one long trade from the open of entryIndex.
+ * Simulate one long trade from the open of entryIndex (or the buy-stop fill).
  * Conservative ordering: a gap through the stop exits at the open; a bar that
  * touches both levels counts as the stop. Levels are only acted on in
  * tradeable bars; the time exit moves to the next tradeable bar's open if the
@@ -76,11 +94,23 @@ export function isTradeable(bar: PriceBar): boolean {
 export function simulateTrade(bars: PriceBar[], entryIndex: number, plan: ExitPlan, costBps: number):
     Omit<HarnessTrade, 'symbol' | 'industry' | 'signalDate'> | null {
     if (entryIndex >= bars.length || !isTradeable(bars[entryIndex])) return null;
-    const entry = bars[entryIndex].open;
-    const stop = plan.stopPct === null ? null : entry * (1 - plan.stopPct / 100);
+    const filled = entryFill(bars[entryIndex], plan);
+    if (filled === null) return null;
+    const entry = filled;
+    let stop = plan.stopPct === null ? null : entry * (1 - plan.stopPct / 100);
     const target = plan.targetPct === null ? null : entry * (1 + plan.targetPct / 100);
+    const partialLevel = plan.partial && plan.stopPct !== null ? entry * (1 + (plan.partial.atR * plan.stopPct) / 100) : null;
+    let partialPrice: number | null = null;
+    let moveStopToEntry = false;
+    let trailDue = false;
+    let closeSum = 0;
+    const period = plan.trailSma ?? 0;
+    if (period > 0) for (let j = Math.max(0, entryIndex - period); j < entryIndex; j += 1) closeSum += bars[j].close;
     const last = entryIndex + plan.horizon - 1;
     let delayed = false;
+    const blended = (exit: number) => partialPrice === null
+        ? (exit / entry - 1) * 100
+        : plan.partial!.fraction * (partialPrice / entry - 1) * 100 + (1 - plan.partial!.fraction) * (exit / entry - 1) * 100;
     const done = (outcome: HarnessTrade['outcome'], exit: number, k: number) => ({
         entryDate: bars[entryIndex].date,
         exitDate: bars[k].date,
@@ -89,19 +119,29 @@ export function simulateTrade(bars: PriceBar[], entryIndex: number, plan: ExitPl
         entry,
         exit,
         outcome,
-        netPct: (exit / entry - 1) * 100 - costBps / 100,
+        netPct: blended(exit) - costBps / 100,
         delayedExit: delayed,
         stopPct: plan.stopPct,
+        ...(plan.partial ? { partialFilled: partialPrice !== null } : {}),
     });
     for (let k = entryIndex; k < bars.length; k += 1) {
         const bar = bars[k];
+        // Rolling sum of the last `period` closes up to k (data known at k's close).
+        if (period > 0) { closeSum += bar.close; if (k - period >= 0) closeSum -= bars[k - period].close; }
         if (!isTradeable(bar)) { delayed = true; continue; }
+        if (moveStopToEntry) { stop = Math.max(stop ?? entry, entry); moveStopToEntry = false; }
         if (k > last) return done('TIME', bar.open, k); // time exit was due on an untradeable bar
+        if (trailDue) return done('TRAIL', bar.open, k);
         if (k > entryIndex && stop !== null && bar.open <= stop) return done('STOP', bar.open, k);
         if (k > entryIndex && target !== null && bar.open >= target) return done('TARGET', bar.open, k);
         if (stop !== null && bar.low <= stop) return done('STOP', stop, k);
         if (target !== null && bar.high >= target) return done('TARGET', target, k);
+        if (partialLevel !== null && partialPrice === null && bar.high >= partialLevel) {
+            partialPrice = k > entryIndex && bar.open >= partialLevel ? bar.open : partialLevel;
+            moveStopToEntry = true;
+        }
         if (k === last) return done('TIME', bar.close, k);
+        if (period > 0 && k >= period - 1 && bar.close < closeSum / period) trailDue = true;
     }
     return null;
 }
@@ -139,6 +179,8 @@ export function selectTrades(candidates: Candidate[], barsBySymbol: Map<string, 
             if (entryIndex >= bars.length) continue;
             const maxGap = candidate.exit.maxGapUpPct;
             if (maxGap !== undefined && bars[entryIndex].open > bars[candidate.index].close * (1 + maxGap / 100)) continue;
+            // An unfilled buy-stop still used one of today's orders: no picking the ones that filled.
+            if (isTradeable(bars[entryIndex]) && entryFill(bars[entryIndex], candidate.exit) === null) { today += 1; continue; }
             const result = simulateTrade(bars, entryIndex, candidate.exit, rules.costBps);
             if (!result) continue;
             const trade: HarnessTrade = { symbol: candidate.symbol, industry: sectorKey, signalDate: date, ...result };

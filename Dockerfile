@@ -36,9 +36,15 @@ COPY --from=backend-build /app/prisma ./prisma
 COPY --from=backend-build /app/node_modules/@prisma/client ./node_modules/@prisma/client
 COPY --from=backend-build /app/node_modules/.prisma ./node_modules/.prisma
 
+# Industry labels read by auto paper and the studies
+COPY data/nifty500-constituents.csv ./data/nifty500-constituents.csv
+
 # Copy built frontend
 COPY --from=frontend-build /app/apex-intelligence/dist ./apex-intelligence/dist
 
 # Expose port and start
 EXPOSE 3000
-CMD ["sh", "-c", "npx prisma migrate deploy && exec npm start"]
+# The schema is applied with db push: schema.prisma is the source of truth (the local
+# database was built with prisma db execute, so the migrations folder was never checked
+# against it), and db push refuses destructive changes unless --accept-data-loss is given.
+CMD ["sh", "-c", "npx prisma db push --skip-generate && exec npm start"]

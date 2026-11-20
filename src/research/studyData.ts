@@ -14,7 +14,7 @@ export function dateKey(value: Date): string {
 export async function loadUniverse(): Promise<Map<string, Set<string>>> {
     const rows = await prisma.$queryRaw<Array<{ symbol: string; d: Date }>>`
         WITH t AS (
-            SELECT c.symbol, c."tradingDate" AS d,
+            SELECT c.symbol, c."tradingDate" AS d, c.series,
                    AVG(c."turnoverCr") OVER w AS t20,
                    COUNT(c."turnoverCr") OVER w AS cnt
             FROM "DailyCandle" c
@@ -22,7 +22,8 @@ export async function loadUniverse(): Promise<Map<string, Set<string>>> {
             WHERE c."isFinal" = true AND m.isin LIKE 'INE%'
             WINDOW w AS (PARTITION BY c.symbol ORDER BY c."tradingDate" ROWS BETWEEN 19 PRECEDING AND CURRENT ROW)
         ),
-        r AS (SELECT symbol, d, RANK() OVER (PARTITION BY d ORDER BY t20 DESC) AS rk FROM t WHERE cnt = 20)
+        -- Only normal (EQ) days are eligible; trade-to-trade days count toward turnover history only.
+        r AS (SELECT symbol, d, RANK() OVER (PARTITION BY d ORDER BY t20 DESC) AS rk FROM t WHERE cnt = 20 AND series = 'EQ')
         SELECT symbol, d FROM r WHERE rk <= ${UNIVERSE_SIZE}`;
     const bySymbol = new Map<string, Set<string>>();
     for (const row of rows) {
