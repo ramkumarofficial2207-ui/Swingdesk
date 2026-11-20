@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { PriceBar } from '../src/corporateActions';
-import { pickDeliveryOi, pickSectorMomentum, progressAutoTrade, scorecard, StockSnapshot } from '../src/autoPaper';
+import { pickDeliveryOi, pickSectorMomentum, pickStrengthPlusBuying, progressAutoTrade, scorecard, StockSnapshot } from '../src/autoPaper';
 import { aggregateFno, buildFnoUrl, parseFnoBhavcopy } from '../src/fnoBhavcopy';
 import { computeSeriesIndicators } from '../src/research/momentumPullback';
 
@@ -57,6 +57,20 @@ describe('pickers', () => {
         const noFno = stock('NOFNO', 'X', [2], { deliveryPct: 60, avgDeliveryPct20: 30 });
         const normalDelivery = stock('NORMAL', 'X', [2], { deliveryPct: 35, avgDeliveryPct20: 30, futOiChangePct: 5 });
         expect(pickDeliveryOi([good, lowOi, noFno, normalDelivery]).map(p => p.symbol)).toEqual(['GOOD']);
+    });
+});
+
+describe('strength + buying', () => {
+    it('needs top-20% strength, an uptrend, a 1% bounce, 1.3× delivery and OI up 2%', () => {
+        const long = (symbol: string, strength: number, extra: Partial<StockSnapshot> = {}) => {
+            const closes = Array.from({ length: 230 }, (_, n) => 100 + n * 0.3);
+            closes.push(closes[closes.length - 1] * 1.015);
+            const bars = closes.map((close, n) => bar(n, close, { high: close * 1.005, low: close * 0.99 }));
+            return { symbol, industry: 'X', bars, ind: computeSeriesIndicators(bars), i: bars.length - 1, strength, turnover20: 1, deliveryPct: 50, avgDeliveryPct20: 35, futOiChangePct: 4, ...extra } as StockSnapshot;
+        };
+        const weak = Array.from({ length: 8 }, (_, k) => long(`W${k}`, 0.01 * k, { futOiChangePct: null }));
+        const picks = pickStrengthPlusBuying([...weak, long('STRONG', 0.9), long('NOOI', 0.8, { futOiChangePct: 1 })]);
+        expect(picks.map(p => p.symbol)).toEqual(['STRONG']);
     });
 });
 

@@ -30,11 +30,12 @@ import { factorAfter } from './paperTracker';
 
 export const AUTO_RULES = { perStrategy: 3, targetPct: 5, stopPct: 2.5, horizon: 15, maxGapUpPct: 3, costBps: 40, verdictTrades: 30, breakEvenHitRate: 40 } as const;
 export const AUTO_EXIT: ExitPlan = { stopPct: AUTO_RULES.stopPct, targetPct: AUTO_RULES.targetPct, horizon: AUTO_RULES.horizon, maxGapUpPct: AUTO_RULES.maxGapUpPct };
-export type Strategy = 'TREND_PULLBACK' | 'SECTOR_MOMENTUM' | 'DELIVERY_OI';
+export type Strategy = 'TREND_PULLBACK' | 'SECTOR_MOMENTUM' | 'DELIVERY_OI' | 'STRENGTH_PLUS_BUYING';
 export const STRATEGIES: Record<Strategy, string> = {
     TREND_PULLBACK: 'Top 10% 6-month strength, uptrend, 3–8% pullback to the 20-day average, NIFTY trending up',
     SECTOR_MOMENTUM: 'Industry with ≥ 4 stocks in the day’s top 30 gainers; its most-traded names above the 50-day average',
     DELIVERY_OI: 'Up ≥ 1% with delivery % ≥ 1.5× its 20-day average and futures OI up ≥ 3% (long build-up), above the 50-day average',
+    STRENGTH_PLUS_BUYING: 'Top 20% 6-month strength in an uptrend, bouncing ≥ 1% today with delivery ≥ 1.3× normal and futures OI up ≥ 2%',
 };
 
 /** Everything a picker needs about one stock at the signal close. */
@@ -93,6 +94,19 @@ export function pickDeliveryOi(stocks: StockSnapshot[]): Pick[] {
         const closeStrong = bar.high > bar.low ? (bar.close - bar.low) / (bar.high - bar.low) >= 0.5 : false;
         const pass = todayPct(s) >= 1 && closeStrong && ratio >= 1.5 && s.futOiChangePct >= 3 && bar.close > s.ind.sma50[s.i];
         return pass ? [{ strategy: 'DELIVERY_OI' as const, symbol: s.symbol, score: ratio, reason: `${pct(todayPct(s))} today, delivery ${s.deliveryPct.toFixed(0)}% (${ratio.toFixed(1)}× normal), futures OI ${pct(s.futOiChangePct)}` }] : [];
+    }));
+}
+
+/** Strong stock (trend + strength) on a day big buyers show up (delivery + long build-up). */
+export function pickStrengthPlusBuying(stocks: StockSnapshot[]): Pick[] {
+    const threshold = topThreshold(stocks.flatMap(s => (s.strength === null ? [] : [s.strength])), 0.2);
+    return top(stocks.flatMap(s => {
+        const bar = s.bars[s.i];
+        if (s.strength === null || s.strength < threshold || s.deliveryPct === null || !s.avgDeliveryPct20 || s.futOiChangePct === null) return [];
+        const uptrend = bar.close > s.ind.sma50[s.i] && s.ind.sma50[s.i] > s.ind.sma200[s.i];
+        const ratio = s.deliveryPct / s.avgDeliveryPct20;
+        const pass = uptrend && todayPct(s) >= 1 && ratio >= 1.3 && s.futOiChangePct >= 2;
+        return pass ? [{ strategy: 'STRENGTH_PLUS_BUYING' as const, symbol: s.symbol, score: ratio * (1 + s.futOiChangePct / 100), reason: `6-month ${pct(100 * s.strength)}, ${pct(todayPct(s))} today, delivery ${ratio.toFixed(1)}× normal, futures OI ${pct(s.futOiChangePct)}` }] : [];
     }));
 }
 
@@ -190,7 +204,7 @@ async function snapshots(date: string): Promise<StockSnapshot[]> {
 export async function recordPicks(date: string): Promise<Pick[]> {
     const stocks = await snapshots(date);
     if (stocks.length < 100) throw new Error(`Only ${stocks.length} stocks have a finalized candle on ${date}.`);
-    const picks = [...pickTrendPullback(stocks, await niftyTrendUp(date)), ...pickSectorMomentum(stocks), ...pickDeliveryOi(stocks)];
+    const picks = [...pickTrendPullback(stocks, await niftyTrendUp(date)), ...pickSectorMomentum(stocks), ...pickDeliveryOi(stocks), ...pickStrengthPlusBuying(stocks)];
     const closeOf = new Map(stocks.map(s => [s.symbol, s.bars[s.i].close]));
     const rank = new Map<string, number>();
     for (const pick of picks) {
@@ -303,6 +317,53 @@ export async function writeReport(latestPicks: Pick[], date: string): Promise<Sc
     mkdirSync('reports', { recursive: true });
     writeFileSync(join('reports', 'auto-paper.md'), lines.join('\n'));
     return cards;
+}
+
+export interface AutoPaperTradeView {
+    id: string;
+    strategy: string;
+    symbol: string;
+    signalDate: string;
+    state: string;
+    reason: string;
+    signalClose: number;
+    entryDate: string | null;
+    entryPrice: number | null;
+    exitDate: string | null;
+    exitPrice: number | null;
+    netPct: number | null;
+    sessionsHeld: number | null;
+}
+
+export interface AutoPaperView {
+    rules: typeof AUTO_RULES;
+    strategies: Record<Strategy, string>;
+    latestSignalDate: string | null;
+    scorecards: Scorecard[];
+    trades: AutoPaperTradeView[];
+    lastRun: { at: string; ok: boolean; message: string } | null;
+}
+
+let lastRun: AutoPaperView['lastRun'] = null;
+export function setLastAutoPaperRun(ok: boolean, message: string): void {
+    lastRun = { at: new Date().toISOString(), ok, message };
+}
+
+/** Everything the app screen needs, read from the database. */
+export async function getAutoPaperView(limit = 300): Promise<AutoPaperView> {
+    const all = await prisma.autoPaperTrade.findMany({ orderBy: [{ signalDate: 'desc' }, { strategy: 'asc' }, { rank: 'asc' }] });
+    const d = (v: Date | null) => (v ? key(v) : null);
+    return {
+        rules: AUTO_RULES,
+        strategies: STRATEGIES,
+        latestSignalDate: all[0] ? key(all[0].signalDate) : null,
+        scorecards: (Object.keys(STRATEGIES) as Strategy[]).map(s => scorecard(s, all.filter(t => t.strategy === s))),
+        trades: all.slice(0, limit).map(t => ({
+            id: t.id, strategy: t.strategy, symbol: t.symbol, signalDate: key(t.signalDate), state: t.state, reason: t.reason, signalClose: t.signalClose,
+            entryDate: d(t.entryDate), entryPrice: t.entryPrice, exitDate: d(t.exitDate), exitPrice: t.exitPrice, netPct: t.netPct, sessionsHeld: t.sessionsHeld,
+        })),
+        lastRun,
+    };
 }
 
 export async function runAutoPaper(date?: string): Promise<Scorecard[]> {

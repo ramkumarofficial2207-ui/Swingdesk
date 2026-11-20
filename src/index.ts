@@ -8,6 +8,8 @@ import { getEodResearchSignals } from './eodResearchSignals';
 import { loadEarlySession, runEarlySession } from './earlySession';
 import { catalystsFor, currentRegime, exitAdviceFor, runMorningConfirmation } from './tradingDesk';
 import { getSetupEvidence } from './setupEvidenceService';
+import { getAutoPaperView } from './autoPaper';
+import { autoPaperRunning, runAutoPaperNightly } from './nightlyAutoPaper';
 import { assessWorkspaceReadiness } from './workspaceReadiness';
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
@@ -1292,6 +1294,24 @@ app.post('/api/research/early-session/run', requireAuth, requireSubscription, as
         earlySessionRun = null;
     }
 });
+
+// Auto paper trading (src/autoPaper.ts): scorecard, picks and every paper trade. Never places orders.
+app.get('/api/research/auto-paper', requireAuth, requireSubscription, async (_req: Request, res: Response) => {
+    try { res.setHeader('Cache-Control', 'no-store'); res.json({ success: true, data: { ...(await getAutoPaperView()), running: autoPaperRunning() } }); }
+    catch (error: any) { res.status(503).json({ success: false, message: 'Auto paper trading is unavailable.' }); }
+});
+
+app.post('/api/research/auto-paper/run', requireAuth, requireSubscription, async (_req: Request, res: Response) => {
+    if (autoPaperRunning()) return res.status(409).json({ success: false, message: 'An auto paper update is already running.' });
+    try { res.json({ success: true, data: { message: await runAutoPaperNightly() } }); }
+    catch (error: any) { res.status(400).json({ success: false, message: error?.message || 'Auto paper update failed.' }); }
+});
+
+// After the close (NSE F&O and delivery files are out by ~19:00 IST): candles, F&O OI, then paper trades.
+// Runs in every mode, independent of ENABLE_AUTO_SCAN; set ENABLE_AUTO_PAPER=false to turn it off.
+if (process.env.ENABLE_AUTO_PAPER !== 'false') cron.schedule('15 19 * * 1-5', () => {
+    void runAutoPaperNightly().catch(error => console.warn('[AutoPaper] Evening run failed:', error?.message || error));
+}, { timezone: 'Asia/Kolkata' });
 
 app.get('/api/research/setup-evidence', requireAuth, requireSubscription, async (_req: Request, res: Response) => {
     try { res.setHeader('Cache-Control', 'no-store'); res.json({ success: true, data: await getSetupEvidence() }); }
