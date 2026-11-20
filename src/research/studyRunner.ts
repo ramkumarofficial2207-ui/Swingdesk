@@ -21,6 +21,8 @@ export interface SignalContext {
     marketUp: (date: string) => boolean | undefined;
     /** NIFTY 50 close above its 50-day average and that average higher than 10 sessions earlier. */
     marketTrendUp?: (date: string) => boolean | undefined;
+    /** Per-bar extra series from the card's `extras` loader, aligned with bars (NaN = missing). */
+    extra?: Record<string, number[]>;
 }
 
 export interface SetupCard {
@@ -34,6 +36,8 @@ export interface SetupCard {
     rules?: Partial<HarnessRules>;
     /** Signal at the close of bar i (data up to i only). Return null for no signal. */
     signal: (bars: PriceBar[], ind: SeriesIndicators, i: number, ctx: SignalContext) => { score: number; exit: ExitPlan; meta?: Record<string, number> } | null;
+    /** Optional loader for extra per-bar data (e.g. delivery %, open interest), aligned with the adjusted bars. */
+    extras?: (symbol: string, bars: PriceBar[]) => Promise<Record<string, number[]>>;
     /** Optional cross-sectional step: adjust or filter a day's candidates (e.g. sector-level rules). */
     perDay?: (date: string, candidates: Candidate[]) => Candidate[];
     /**
@@ -122,10 +126,11 @@ export async function runSetupStudy(card: SetupCard, kind: RegistryEntry['kind']
         const industry = industries.get(symbol) ?? 'Unknown';
         if (card.control?.include({ symbol, industry, ...ctxBase })) controlSeries.push({ bars, at: new Map(bars.map((bar, k) => [bar.date, k])), eligible });
         let used = false;
+        const extra = card.extras ? await card.extras(symbol, bars) : undefined;
         for (let i = 50; i < bars.length - 1; i += 1) {
             const date = bars[i].date;
             if (date < card.discoveryStart || !eligible.has(date)) continue;
-            const hit = card.signal(bars, ind, i, { symbol, industry, ...ctxBase });
+            const hit = card.signal(bars, ind, i, { symbol, industry, ...ctxBase, extra });
             if (!hit) continue;
             candidates.push({ symbol, industry, index: i, score: hit.score, exit: hit.exit, meta: hit.meta });
             used = true;
