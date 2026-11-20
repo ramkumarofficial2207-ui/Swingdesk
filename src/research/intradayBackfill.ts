@@ -21,12 +21,21 @@ async function main(): Promise<void> {
     console.log(`[Backfill] ${symbols.length} symbols were in the top-500 universe since ${from}.`);
     const problems: string[] = [];
     let bars = 0;
-    for (const [index, symbol] of symbols.entries()) {
-        const result = await fetchSymbol(symbol, start, end, true);
-        bars += result.bars;
-        if (result.error) problems.push(`| ${symbol} | ${result.error} |`);
-        if (index % 25 === 0 || result.error) console.log(`[Backfill] ${index + 1}/${symbols.length} ${symbol}: +${result.bars} bars, ${result.skipped ?? 0} chunks already stored${result.error ? ` (${result.error})` : ''}`);
-    }
+    let done = 0;
+    const workers = Math.max(1, Math.min(5, Number(process.argv.find(a => a.startsWith('--workers='))?.split('=')[1] ?? 5)));
+    const queue = [...symbols];
+    // Dhan Data APIs allow about 5 requests a second; each worker waits 250 ms between requests.
+    const worker = async () => {
+        for (let symbol = queue.shift(); symbol; symbol = queue.shift()) {
+            const result = await fetchSymbol(symbol, start, end, true);
+            bars += result.bars;
+            done += 1;
+            if (result.error) problems.push(`| ${symbol} | ${result.error} |`);
+            if (done % 25 === 0 || result.error) console.log(`[Backfill] ${done}/${symbols.length} ${symbol}: +${result.bars} bars, ${result.skipped ?? 0} chunks already stored${result.error ? ` (${result.error})` : ''}`);
+        }
+    };
+    await Promise.all(Array.from({ length: workers }, worker));
+    problems.sort();
     writeFileSync(join('reports', 'intraday-backfill.md'), [
         '# Intraday backfill (Dhan 5-minute)',
         '',
