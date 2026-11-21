@@ -38,6 +38,11 @@ export interface ExitPlan {
     trailSma?: number;
     /** Sell `fraction` at entry + atR × stop distance; the rest's stop moves to entry from the next session. */
     partial?: { atR: number; fraction: number };
+    /**
+     * Rule-based exit: when this returns true at the close of bar k (data up to k only),
+     * sell at the next tradeable open (outcome TRAIL). Indices refer to the same bars array.
+     */
+    exitWhen?: (k: number) => boolean;
 }
 
 export interface Candidate {
@@ -142,6 +147,7 @@ export function simulateTrade(bars: PriceBar[], entryIndex: number, plan: ExitPl
         }
         if (k === last) return done('TIME', bar.close, k);
         if (period > 0 && k >= period - 1 && bar.close < closeSum / period) trailDue = true;
+        if (plan.exitWhen && plan.exitWhen(k)) trailDue = true;
     }
     return null;
 }
