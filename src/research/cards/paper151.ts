@@ -50,13 +50,17 @@ function signalsFor(data: StudyData): BaselineSignals {
     return signals;
 }
 
-export function paper151Card(id: BaselineId, mode: 'own' | 'swing'): SetupCard {
+export const RATCHET_EXIT: ExitPlan = { stopPct: 5.5, targetPct: 8.5, horizon: 15, maxGapUpPct: 3, ratchet: [{ at: 3.5, stopTo: 0 }, { at: 4.5, stopTo: 2.5 }, { at: 7, stopTo: 4.75 }] };
+export type Paper151Mode = 'own' | 'swing' | 'ratchet';
+
+export function paper151Card(id: BaselineId, mode: Paper151Mode): SetupCard {
+    const swingExit = mode === 'ratchet' ? RATCHET_EXIT : SWING_EXIT;
     const meta = BASELINES[id];
     let bySymbol: Map<string, Map<number, { score: number; exit: ExitPlan; rebalanceDay: boolean }>> = new Map();
     return {
         id: `paper151-${id.toLowerCase().replace(/_/g, '-')}-${mode}`,
-        name: `151 Strategies §${meta.section} ${meta.name} — ${mode === 'own' ? "paper's own holding rule" : '5% swing rule'}`,
-        plan: 'paper151-plan.md',
+        name: `151 Strategies §${meta.section} ${meta.name} — ${mode === 'own' ? "paper's own holding rule" : mode === 'swing' ? '5% swing rule' : 'ratcheting-stop swing rule'}`,
+        plan: mode === 'ratchet' ? 'paper151-ratchet-plan.md' : 'paper151-plan.md',
         thesis: `${meta.rule}.`,
         discoveryStart: '2021-01-01',
         testYears: ['2024', '2025', '2026'],
@@ -66,28 +70,30 @@ export function paper151Card(id: BaselineId, mode: 'own' | 'swing'): SetupCard {
             const hit = bySymbol.get(ctx.symbol)?.get(i);
             if (!hit) return null;
             if (mode === 'own') return hit.rebalanceDay ? { score: hit.score, exit: hit.exit } : null;
-            return { score: hit.score, exit: SWING_EXIT };
+            return { score: hit.score, exit: swingExit };
         },
         control: {
             label: LABELLED_ONLY.has(id) ? 'all universe stocks with an industry label, same day and exit' : 'all universe stocks, same day and exit',
             include: ctx => !LABELLED_ONLY.has(id) || ctx.industry !== 'Unknown',
-            exit: mode === 'own' ? { stopPct: null, targetPct: null, horizon: OWN_CONTROL_HORIZON[id] } : SWING_EXIT,
+            exit: mode === 'own' ? { stopPct: null, targetPct: null, horizon: OWN_CONTROL_HORIZON[id] } : swingExit,
         },
     };
 }
 
 const fmt = (value: number) => `${value >= 0 ? '+' : ''}${value.toFixed(2)}%`;
 
-export interface Paper151Row { id: BaselineId; mode: 'own' | 'swing'; result: StudyResult; consistent: boolean; reportId: string }
+export interface Paper151Row { id: BaselineId; mode: Paper151Mode; result: StudyResult; consistent: boolean; reportId: string }
 
 async function main(): Promise<void> {
     const only = process.argv.find(arg => arg.startsWith('--only='))?.slice(7).split(',') as BaselineId[] | undefined;
+    const modes: Paper151Mode[] = process.argv.includes('--ratchet') ? ['ratchet'] : ['own', 'swing'];
+    const reportName = process.argv.includes('--ratchet') ? 'paper151-ratchet.md' : only ? 'paper151-partial.md' : 'paper151.md';
     const started = Date.now();
     const data = await loadStudyData();
     console.log(`[Paper151] loaded ${data.series.size} stocks in ${((Date.now() - started) / 1000).toFixed(0)}s`);
     const rows: Paper151Row[] = [];
     for (const id of only ?? BASELINE_IDS) {
-        for (const mode of ['own', 'swing'] as const) {
+        for (const mode of modes) {
             const card = paper151Card(id, mode);
             const result = await runSetupStudy(card, 'pre-registered', undefined, data);
             // Pre-registered extra rule: the edge over the control must also be there in discovery.
@@ -105,10 +111,10 @@ async function main(): Promise<void> {
         '',
         '| § | Strategy | Rule | Test trades | Test avg net | Test per-day avg | Excess vs control (test) | Excess vs control (discovery) | Checks | Kept |',
         '|---|---|---|---:|---:|---:|---:|---:|:---:|:---:|',
-        ...rows.map(({ id, mode, result, consistent, reportId }) => `| ${BASELINES[id].section} | [${BASELINES[id].name}](${reportId}.md) | ${mode === 'own' ? 'own' : '5% swing'} | ${result.test.n} | ${fmt(result.test.avg)} | ${fmt(result.test.dayClustered)} | ${result.excess ? fmt(result.excess.test.avg) : '—'} | ${result.excess ? fmt(result.excess.discovery.avg) : '—'} | ${result.passed ? '✅' : '❌'} | ${consistent ? '**yes**' : 'no'} |`),
+        ...rows.map(({ id, mode, result, consistent, reportId }) => `| ${BASELINES[id].section} | [${BASELINES[id].name}](${reportId}.md) | ${mode === 'own' ? 'own' : mode === 'swing' ? '5% swing' : 'ratchet'} | ${result.test.n} | ${fmt(result.test.avg)} | ${fmt(result.test.dayClustered)} | ${result.excess ? fmt(result.excess.test.avg) : '—'} | ${result.excess ? fmt(result.excess.discovery.avg) : '—'} | ${result.passed ? '✅' : '❌'} | ${consistent ? '**yes**' : 'no'} |`),
         '',
         kept.length
-            ? `Kept: ${kept.map(row => `${BASELINES[row.id].name} (${row.mode === 'own' ? 'own rule' : '5% rule'})`).join('; ')}. Per plan these go to forward paper tracking only, never straight to Trusted.`
+            ? `Kept: ${kept.map(row => `${BASELINES[row.id].name} (${row.mode === 'own' ? 'own rule' : row.mode === 'swing' ? '5% rule' : 'ratchet rule'})`).join('; ')}. Per plan these go to forward paper tracking only, never straight to Trusted.`
             : 'Nothing kept. Per plan, no strategy from the paper is added to the app as a signal; the code stays as a reusable baseline library.',
         '',
         `With ${rows.length} trials, about one false pass is expected by chance at the usual 5% level; that is why a kept strategy still has to earn its record forward on paper.`,
