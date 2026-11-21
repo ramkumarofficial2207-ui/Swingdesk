@@ -85,3 +85,27 @@ describe('computeBaselineSignals', () => {
         expect(cut.get('MA_SINGLE')!.get('UP')?.has(crossDays[0])).toBe(crossDays[0] < 90);
     });
 });
+
+describe('ratcheting stop', () => {
+    const plan = { stopPct: 5.5, targetPct: 8.5, horizon: 15, ratchet: [{ at: 3.5, stopTo: 0 }, { at: 4.5, stopTo: 2.5 }, { at: 7, stopTo: 4.75 }] };
+    const flat = () => Array.from({ length: 20 }, (_, n) => bar(n, 100, { high: 100.5, low: 99.5 }));
+
+    it('moves the stop to entry after +3.5% and exits there', () => {
+        const bars = flat();
+        bars[2] = bar(2, 103, { high: 103.6, low: 102 });
+        bars[3] = bar(3, 99, { open: 101, high: 101, low: 98 });
+        const t = simulateTrade(bars, 1, plan, 40)!;
+        expect(t.outcome).toBe('STOP');
+        expect(t.exit).toBe(100);
+    });
+
+    it('locks +4.75% after +7%, and does not use the move on the same session', () => {
+        const bars = flat();
+        bars[2] = bar(2, 104, { high: 107.2, low: 94 }); // same bar: old −5.5% stop still applies
+        expect(simulateTrade(bars, 1, plan, 40)!.exit).toBeCloseTo(94.5);
+        const ok = flat();
+        ok[2] = bar(2, 106, { high: 107.2, low: 103 });
+        ok[3] = bar(3, 104, { open: 106, high: 106, low: 104 });
+        expect(simulateTrade(ok, 1, plan, 40)!.exit).toBeCloseTo(104.75);
+    });
+});

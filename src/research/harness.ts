@@ -43,6 +43,12 @@ export interface ExitPlan {
      * sell at the next tradeable open (outcome TRAIL). Indices refer to the same bars array.
      */
     exitWhen?: (k: number) => boolean;
+    /**
+     * Ratcheting stop: once a session's high reaches entry × (1 + at%), the stop moves up to
+     * entry × (1 + stopTo%) from the next session (never down). Conservative: the move is
+     * not used on the session that reached the level.
+     */
+    ratchet?: Array<{ at: number; stopTo: number }>;
 }
 
 export interface Candidate {
@@ -108,6 +114,7 @@ export function simulateTrade(bars: PriceBar[], entryIndex: number, plan: ExitPl
     let partialPrice: number | null = null;
     let moveStopToEntry = false;
     let trailDue = false;
+    let ratchetStop: number | null = null;
     let closeSum = 0;
     const period = plan.trailSma ?? 0;
     if (period > 0) for (let j = Math.max(0, entryIndex - period); j < entryIndex; j += 1) closeSum += bars[j].close;
@@ -135,6 +142,7 @@ export function simulateTrade(bars: PriceBar[], entryIndex: number, plan: ExitPl
         if (period > 0) { closeSum += bar.close; if (k - period >= 0) closeSum -= bars[k - period].close; }
         if (!isTradeable(bar)) { delayed = true; continue; }
         if (moveStopToEntry) { stop = Math.max(stop ?? entry, entry); moveStopToEntry = false; }
+        if (ratchetStop !== null) stop = Math.max(stop ?? ratchetStop, ratchetStop);
         if (k > last) return done('TIME', bar.open, k); // time exit was due on an untradeable bar
         if (trailDue) return done('TRAIL', bar.open, k);
         if (k > entryIndex && stop !== null && bar.open <= stop) return done('STOP', bar.open, k);
@@ -146,6 +154,9 @@ export function simulateTrade(bars: PriceBar[], entryIndex: number, plan: ExitPl
             moveStopToEntry = true;
         }
         if (k === last) return done('TIME', bar.close, k);
+        if (plan.ratchet) for (const step of plan.ratchet) {
+            if (bar.high >= entry * (1 + step.at / 100)) ratchetStop = Math.max(ratchetStop ?? -Infinity, entry * (1 + step.stopTo / 100));
+        }
         if (period > 0 && k >= period - 1 && bar.close < closeSum / period) trailDue = true;
         if (plan.exitWhen && plan.exitWhen(k)) trailDue = true;
     }
