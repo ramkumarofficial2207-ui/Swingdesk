@@ -173,7 +173,7 @@
   },
   {
     "id": "global-cues-g1",
-    "name": "Global and commodity cues G1 (|z| \u2265 1.5)",
+    "name": "Global and commodity cues G1 (|z| ≥ 1.5)",
     "plan": "global-cues-plan.md",
     "ranAt": "2026-11-19T15:08:00.657Z",
     "kind": "pre-registered",
@@ -191,7 +191,7 @@
   },
   {
     "id": "global-cues-g2",
-    "name": "Global and commodity cues G2 (|z| \u2265 2.0)",
+    "name": "Global and commodity cues G2 (|z| ≥ 2.0)",
     "plan": "global-cues-plan.md",
     "ranAt": "2026-11-19T15:09:00.962Z",
     "kind": "pre-registered",
@@ -423,6 +423,799 @@
       "n": 41,
       "avg": -0.36540059079683146,
       "dayClustered": -0.30203560556675224
+    },
+    "verdict": "FAIL"
+  },
+  {
+    "id": "paper151-momentum-own",
+    "name": "151 Strategies §3.1 Price momentum (12-1) — paper's own holding rule",
+    "plan": "paper151-plan.md",
+    "ranAt": "2026-11-21T11:02:06.576Z",
+    "kind": "pre-registered",
+    "discovery": {
+      "n": 1660,
+      "avg": 3.135784408842154,
+      "dayClustered": 3.148626201047758
+    },
+    "test": {
+      "n": 1511,
+      "avg": 0.3321183850831053,
+      "dayClustered": 0.31329914840864054
+    },
+    "verdict": "FAIL"
+  },
+  {
+    "id": "paper151-momentum-swing",
+    "name": "151 Strategies §3.1 Price momentum (12-1) — 5% swing rule",
+    "plan": "paper151-plan.md",
+    "ranAt": "2026-11-21T11:02:09.005Z",
+    "kind": "pre-registered",
+    "discovery": {
+      "n": 2217,
+      "avg": -0.5228755811281992,
+      "dayClustered": -0.5228755811281779
+    },
+    "test": {
+      "n": 2133,
+      "avg": -0.45531233446305425,
+      "dayClustered": -0.4553123344630677
+    },
+    "verdict": "FAIL"
+  },
+  {
+    "id": "paper151-low-vol-own",
+    "name": "151 Strategies §3.4 Low-volatility anomaly — paper's own holding rule",
+    "plan": "paper151-plan.md",
+    "ranAt": "2026-11-21T11:02:09.506Z",
+    "kind": "pre-registered",
+    "discovery": {
+      "n": 278,
+      "avg": 8.857001430386017,
+      "dayClustered": 8.826502124089103
+    },
+    "test": {
+      "n": 183,
+      "avg": 0.7421746429718097,
+      "dayClustered": 0.7166446621239206
+    },
+    "verdict": "FAIL"
+  },
+  {
+    "id": "paper151-low-vol-swing",
+    "name": "151 Strategies §3.4 Low-volatility anomaly — 5% swing rule",
+    "plan": "paper151-plan.md",
+    "ranAt": "2026-11-21T11:02:10.921Z",
+    "kind": "pre-registered",
+    "discovery": {
+      "n": 1574,
+      "avg": -0.07776217551769131,
+      "dayClustered": -0.05148225729162724
+    },
+    "test": {
+      "n": 1479,
+      "avg": -0.4594760884888212,
+      "dayClustered": -0.3891396841395738
+    },
+    "verdict": "FAIL"
+  },
+  {
+    "id": "paper151-residual-momentum-own",
+    "name": "151 Strategies §3.7 Residual momentum — paper's own holding rule",
+    "plan": "paper151-plan.md",
+    "ranAt": "2026-11-21T11:02:11.486Z",
+    "kind": "pre-registered",
+    "discovery": {
+      "n": 990,
+      "avg": 2.315386223609654,
+      "dayClustered": 2.371017486973246
+    },
+    "test": {
+      "n": 1399,
+      "avg": 0.07258503850298051,
+      "dayClustered": 0.06796498160978823
+    },
+    "verdict": "FAIL"
+  },
+  {
+    "id": "paper151-residual-momentum-swing",
+    "name": "151 Strategies §3.7 Residual momentum — 5% swing rule",
+    "plan": "paper151-plan.md",
+    "ranAt": "2026-11-21T11:02:13.064Z",
+    "kind": "pre-registered",
+    "discovery": {
+      "n": 1391,
+      "avg": -0.2148023687095544,
+      "dayClustered": -0.22020035398784346
+    },
+    "test": {
+      "n": 2119,
+      "avg": -0.45926894921189276,
+      "dayClustered": -0.46379685156983214
+    },
+    "verdict": "FAIL"
+  },
+  {
+    "id": "paper151-multifactor-own",
+    "name": "151 Strategies §3.6 Multifactor (rank average) — paper's own holding rule",
+    "plan": "paper151-plan.md",
+    "ranAt": "2026-11-21T11:02:13.564Z",
+    "kind": "pre-registered",
+    "discovery": {
+      "n": 995,
+      "avg": 1.80287872774047,
+      "dayClustered": 1.8229533596224308
+    },
+    "test": {
+      "n": 1403,
+      "avg": -0.17824796218110725,
+      "dayClustered": -0.19792136189301082
+    },
+    "verdict": "FAIL"
+  },
+  {
+    "id": "paper151-multifactor-swing",
+    "name": "151 Strategies §3.6 Multifactor (rank average) — 5% swing rule",
+    "plan": "paper151-plan.md",
+    "ranAt": "2026-11-21T11:02:14.996Z",
+    "kind": "pre-registered",
+    "discovery": {
+      "n": 1245,
+      "avg": -0.16343694439868195,
+      "dayClustered": -0.16529362691737104
+    },
+    "test": {
+      "n": 1927,
+      "avg": -0.46083277601799905,
+      "dayClustered": -0.4900280078412152
+    },
+    "verdict": "FAIL"
+  },
+  {
+    "id": "paper151-industry-reversion-own",
+    "name": "151 Strategies §3.9 Industry-neutral mean-reversion — paper's own holding rule",
+    "plan": "paper151-plan.md",
+    "ranAt": "2026-11-21T11:02:15.880Z",
+    "kind": "pre-registered",
+    "discovery": {
+      "n": 3693,
+      "avg": 0.3312663819819531,
+      "dayClustered": 0.3309268892857295
+    },
+    "test": {
+      "n": 3534,
+      "avg": -0.1444330601213101,
+      "dayClustered": -0.14439988419593758
+    },
+    "verdict": "FAIL"
+  },
+  {
+    "id": "paper151-industry-reversion-swing",
+    "name": "151 Strategies §3.9 Industry-neutral mean-reversion — 5% swing rule",
+    "plan": "paper151-plan.md",
+    "ranAt": "2026-11-21T11:02:16.693Z",
+    "kind": "pre-registered",
+    "discovery": {
+      "n": 2184,
+      "avg": -0.19980047921406385,
+      "dayClustered": -0.1845797709697966
+    },
+    "test": {
+      "n": 2121,
+      "avg": -0.6855671587397474,
+      "dayClustered": -0.694509115652582
+    },
+    "verdict": "FAIL"
+  },
+  {
+    "id": "paper151-ibs-own",
+    "name": "151 Strategies §4.4 Internal bar strength — paper's own holding rule",
+    "plan": "paper151-plan.md",
+    "ranAt": "2026-11-21T11:02:19.081Z",
+    "kind": "pre-registered",
+    "discovery": {
+      "n": 3705,
+      "avg": -0.5177339910659842,
+      "dayClustered": -0.5177339910659837
+    },
+    "test": {
+      "n": 3555,
+      "avg": -0.5578038545008819,
+      "dayClustered": -0.557803854500882
+    },
+    "verdict": "FAIL"
+  },
+  {
+    "id": "paper151-ibs-swing",
+    "name": "151 Strategies §4.4 Internal bar strength — 5% swing rule",
+    "plan": "paper151-plan.md",
+    "ranAt": "2026-11-21T11:02:22.326Z",
+    "kind": "pre-registered",
+    "discovery": {
+      "n": 2215,
+      "avg": -0.5391118393332792,
+      "dayClustered": -0.5455990340434
+    },
+    "test": {
+      "n": 2077,
+      "avg": -0.4708701244854575,
+      "dayClustered": -0.4857994746002876
+    },
+    "verdict": "FAIL"
+  },
+  {
+    "id": "paper151-ma-single-own",
+    "name": "151 Strategies §3.11 Single moving average — paper's own holding rule",
+    "plan": "paper151-plan.md",
+    "ranAt": "2026-11-21T11:02:24.738Z",
+    "kind": "pre-registered",
+    "discovery": {
+      "n": 1108,
+      "avg": 0.6101586102426896,
+      "dayClustered": 0.5672025995545042
+    },
+    "test": {
+      "n": 1179,
+      "avg": -0.29988114896011175,
+      "dayClustered": -0.38409767540819495
+    },
+    "verdict": "FAIL"
+  },
+  {
+    "id": "paper151-ma-single-swing",
+    "name": "151 Strategies §3.11 Single moving average — 5% swing rule",
+    "plan": "paper151-plan.md",
+    "ranAt": "2026-11-21T11:02:26.923Z",
+    "kind": "pre-registered",
+    "discovery": {
+      "n": 1937,
+      "avg": -0.28935701384103635,
+      "dayClustered": -0.27097342905882527
+    },
+    "test": {
+      "n": 1893,
+      "avg": -0.6569820962838054,
+      "dayClustered": -0.6867740653794049
+    },
+    "verdict": "FAIL"
+  },
+  {
+    "id": "paper151-ma-two-own",
+    "name": "151 Strategies §3.12 Two moving averages — paper's own holding rule",
+    "plan": "paper151-plan.md",
+    "ranAt": "2026-11-21T11:02:29.142Z",
+    "kind": "pre-registered",
+    "discovery": {
+      "n": 1420,
+      "avg": 0.5048337978604387,
+      "dayClustered": 0.7852625962693436
+    },
+    "test": {
+      "n": 1518,
+      "avg": -0.38268872788268354,
+      "dayClustered": -0.42751036658944425
+    },
+    "verdict": "FAIL"
+  },
+  {
+    "id": "paper151-ma-two-swing",
+    "name": "151 Strategies §3.12 Two moving averages — 5% swing rule",
+    "plan": "paper151-plan.md",
+    "ranAt": "2026-11-21T11:02:31.149Z",
+    "kind": "pre-registered",
+    "discovery": {
+      "n": 1849,
+      "avg": -0.14353108745682797,
+      "dayClustered": -0.1502231726470363
+    },
+    "test": {
+      "n": 1763,
+      "avg": -0.5835354387868401,
+      "dayClustered": -0.5461469362689247
+    },
+    "verdict": "FAIL"
+  },
+  {
+    "id": "paper151-ma-three-own",
+    "name": "151 Strategies §3.13 Three moving averages — paper's own holding rule",
+    "plan": "paper151-plan.md",
+    "ranAt": "2026-11-21T11:02:33.477Z",
+    "kind": "pre-registered",
+    "discovery": {
+      "n": 1530,
+      "avg": 0.41270565649609553,
+      "dayClustered": 0.23739353283238165
+    },
+    "test": {
+      "n": 1571,
+      "avg": -0.39550529563635106,
+      "dayClustered": -0.5081937699344022
+    },
+    "verdict": "FAIL"
+  },
+  {
+    "id": "paper151-ma-three-swing",
+    "name": "151 Strategies §3.13 Three moving averages — 5% swing rule",
+    "plan": "paper151-plan.md",
+    "ranAt": "2026-11-21T11:02:35.683Z",
+    "kind": "pre-registered",
+    "discovery": {
+      "n": 1989,
+      "avg": -0.24263170761355765,
+      "dayClustered": -0.2418147966223755
+    },
+    "test": {
+      "n": 1964,
+      "avg": -0.5744878717368693,
+      "dayClustered": -0.5924579381408178
+    },
+    "verdict": "FAIL"
+  },
+  {
+    "id": "paper151-pivot-own",
+    "name": "151 Strategies §3.14 Pivot support/resistance — paper's own holding rule",
+    "plan": "paper151-plan.md",
+    "ranAt": "2026-11-21T11:02:39.918Z",
+    "kind": "pre-registered",
+    "discovery": {
+      "n": 2600,
+      "avg": -0.10529304079136781,
+      "dayClustered": -0.13681093519073023
+    },
+    "test": {
+      "n": 2426,
+      "avg": -0.2964025389193711,
+      "dayClustered": -0.29162614017647887
+    },
+    "verdict": "FAIL"
+  },
+  {
+    "id": "paper151-pivot-swing",
+    "name": "151 Strategies §3.14 Pivot support/resistance — 5% swing rule",
+    "plan": "paper151-plan.md",
+    "ranAt": "2026-11-21T11:02:42.838Z",
+    "kind": "pre-registered",
+    "discovery": {
+      "n": 1887,
+      "avg": -0.2873457970386846,
+      "dayClustered": -0.2557999187556138
+    },
+    "test": {
+      "n": 1927,
+      "avg": -0.6051181133923375,
+      "dayClustered": -0.6612202573782605
+    },
+    "verdict": "FAIL"
+  },
+  {
+    "id": "paper151-donchian-own",
+    "name": "151 Strategies §3.15 Donchian channel — paper's own holding rule",
+    "plan": "paper151-plan.md",
+    "ranAt": "2026-11-21T11:02:44.956Z",
+    "kind": "pre-registered",
+    "discovery": {
+      "n": 531,
+      "avg": 1.2904553548874678,
+      "dayClustered": 1.338018142369324
+    },
+    "test": {
+      "n": 468,
+      "avg": 0.788747839128756,
+      "dayClustered": 0.8875874071841691
+    },
+    "verdict": "FAIL"
+  },
+  {
+    "id": "paper151-donchian-swing",
+    "name": "151 Strategies §3.15 Donchian channel — 5% swing rule",
+    "plan": "paper151-plan.md",
+    "ranAt": "2026-11-21T11:02:47.680Z",
+    "kind": "pre-registered",
+    "discovery": {
+      "n": 1913,
+      "avg": -0.4143652340208231,
+      "dayClustered": -0.43290992695522756
+    },
+    "test": {
+      "n": 1866,
+      "avg": -0.6904802731544454,
+      "dayClustered": -0.694781125710944
+    },
+    "verdict": "FAIL"
+  },
+  {
+    "id": "paper151-knn-own",
+    "name": "151 Strategies §3.17 Single-stock k-nearest neighbours — paper's own holding rule",
+    "plan": "paper151-plan.md",
+    "ranAt": "2026-11-21T11:02:50.194Z",
+    "kind": "pre-registered",
+    "discovery": {
+      "n": 1465,
+      "avg": 0.8273834268998714,
+      "dayClustered": 0.8552340479840517
+    },
+    "test": {
+      "n": 1407,
+      "avg": 0.2093463970510354,
+      "dayClustered": 0.32771607927279556
+    },
+    "verdict": "FAIL"
+  },
+  {
+    "id": "paper151-knn-swing",
+    "name": "151 Strategies §3.17 Single-stock k-nearest neighbours — 5% swing rule",
+    "plan": "paper151-plan.md",
+    "ranAt": "2026-11-21T11:02:54.421Z",
+    "kind": "pre-registered",
+    "discovery": {
+      "n": 2196,
+      "avg": -0.5040583684758306,
+      "dayClustered": -0.5040583684758336
+    },
+    "test": {
+      "n": 2133,
+      "avg": -0.5601304471141856,
+      "dayClustered": -0.5601304471141867
+    },
+    "verdict": "FAIL"
+  },
+  {
+    "id": "paper151-dual-momentum-own",
+    "name": "151 Strategies §4.1.2 Dual-momentum sector rotation — paper's own holding rule",
+    "plan": "paper151-plan.md",
+    "ranAt": "2026-11-21T11:02:54.842Z",
+    "kind": "pre-registered",
+    "discovery": {
+      "n": 1057,
+      "avg": 4.468873743612655,
+      "dayClustered": 4.38665328746542
+    },
+    "test": {
+      "n": 835,
+      "avg": -0.26677398737603003,
+      "dayClustered": 0.09241458871927213
+    },
+    "verdict": "FAIL"
+  },
+  {
+    "id": "paper151-dual-momentum-swing",
+    "name": "151 Strategies §4.1.2 Dual-momentum sector rotation — 5% swing rule",
+    "plan": "paper151-plan.md",
+    "ranAt": "2026-11-21T11:02:55.581Z",
+    "kind": "pre-registered",
+    "discovery": {
+      "n": 984,
+      "avg": -0.23141514316932668,
+      "dayClustered": -0.2847039225737542
+    },
+    "test": {
+      "n": 635,
+      "avg": -0.6708760337958486,
+      "dayClustered": -0.6765439403113281
+    },
+    "verdict": "FAIL"
+  },
+  {
+    "id": "volume-ratchet-v1",
+    "name": "Rising volume before the move V1 + ratcheting stop",
+    "plan": "volume-rise-ratchet-plan.md",
+    "ranAt": "2026-11-21T11:16:16.367Z",
+    "kind": "pre-registered",
+    "discovery": {
+      "n": 2059,
+      "avg": -0.40951310127800694,
+      "dayClustered": -0.402259651555152
+    },
+    "test": {
+      "n": 2013,
+      "avg": -1.0242272980175664,
+      "dayClustered": -1.064295386051338
+    },
+    "verdict": "FAIL"
+  },
+  {
+    "id": "volume-ratchet-v2",
+    "name": "Rising volume before the move V2 + ratcheting stop",
+    "plan": "volume-rise-ratchet-plan.md",
+    "ranAt": "2026-11-21T11:16:18.435Z",
+    "kind": "pre-registered",
+    "discovery": {
+      "n": 2093,
+      "avg": -0.43339796069466374,
+      "dayClustered": -0.438455392821993
+    },
+    "test": {
+      "n": 2018,
+      "avg": -0.9031745162511085,
+      "dayClustered": -0.9355041986661624
+    },
+    "verdict": "FAIL"
+  },
+  {
+    "id": "volume-ratchet-v3",
+    "name": "Rising volume before the move V3 + ratcheting stop",
+    "plan": "volume-rise-ratchet-plan.md",
+    "ranAt": "2026-11-21T11:16:20.362Z",
+    "kind": "pre-registered",
+    "discovery": {
+      "n": 1560,
+      "avg": -0.30787401333641523,
+      "dayClustered": -0.24937034000278743
+    },
+    "test": {
+      "n": 1506,
+      "avg": -0.8883101252006546,
+      "dayClustered": -0.9877923590489535
+    },
+    "verdict": "FAIL"
+  },
+  {
+    "id": "volume-ratchet-v4",
+    "name": "Rising volume before the move V4 + ratcheting stop",
+    "plan": "volume-rise-ratchet-plan.md",
+    "ranAt": "2026-11-21T11:16:22.638Z",
+    "kind": "pre-registered",
+    "discovery": {
+      "n": 2073,
+      "avg": -0.35815786462378624,
+      "dayClustered": -0.34457301618892483
+    },
+    "test": {
+      "n": 1982,
+      "avg": -0.7601233360139228,
+      "dayClustered": -0.7628633544302683
+    },
+    "verdict": "FAIL"
+  },
+  {
+    "id": "volume-ratchet-v3-old-exit",
+    "name": "Rising volume before the move V3 (old +5/−2.5 exit, comparison only)",
+    "plan": "volume-rise-ratchet-plan.md",
+    "ranAt": "2026-11-21T11:16:24.711Z",
+    "kind": "exploration",
+    "discovery": {
+      "n": 1946,
+      "avg": -0.5053707282528976,
+      "dayClustered": -0.4982797546022137
+    },
+    "test": {
+      "n": 1888,
+      "avg": -0.8334432188600602,
+      "dayClustered": -0.8119831132460729
+    },
+    "verdict": "FAIL",
+    "note": "Same entry as the primary with the old exit, for comparison only."
+  },
+  {
+    "id": "paper151-momentum-ratchet",
+    "name": "151 Strategies §3.1 Price momentum (12-1) — ratcheting-stop swing rule",
+    "plan": "paper151-ratchet-plan.md",
+    "ranAt": "2026-11-21T11:27:55.711Z",
+    "kind": "pre-registered",
+    "discovery": {
+      "n": 2175,
+      "avg": -0.21764425059313294,
+      "dayClustered": -0.1973942266024643
+    },
+    "test": {
+      "n": 2085,
+      "avg": -0.4278904082173465,
+      "dayClustered": -0.4017071479212491
+    },
+    "verdict": "FAIL"
+  },
+  {
+    "id": "paper151-low-vol-ratchet",
+    "name": "151 Strategies §3.4 Low-volatility anomaly — ratcheting-stop swing rule",
+    "plan": "paper151-ratchet-plan.md",
+    "ranAt": "2026-11-21T11:27:57.883Z",
+    "kind": "pre-registered",
+    "discovery": {
+      "n": 1097,
+      "avg": 0.1773563539880666,
+      "dayClustered": 0.275631283903578
+    },
+    "test": {
+      "n": 970,
+      "avg": -0.29458482479580994,
+      "dayClustered": -0.3527340682906514
+    },
+    "verdict": "FAIL"
+  },
+  {
+    "id": "paper151-residual-momentum-ratchet",
+    "name": "151 Strategies §3.7 Residual momentum — ratcheting-stop swing rule",
+    "plan": "paper151-ratchet-plan.md",
+    "ranAt": "2026-11-21T11:27:59.684Z",
+    "kind": "pre-registered",
+    "discovery": {
+      "n": 1220,
+      "avg": 0.06884438515137188,
+      "dayClustered": 0.012452163755343833
+    },
+    "test": {
+      "n": 1828,
+      "avg": -0.25315516509431685,
+      "dayClustered": -0.19276947440808076
+    },
+    "verdict": "FAIL"
+  },
+  {
+    "id": "paper151-multifactor-ratchet",
+    "name": "151 Strategies §3.6 Multifactor (rank average) — ratcheting-stop swing rule",
+    "plan": "paper151-ratchet-plan.md",
+    "ranAt": "2026-11-21T11:28:01.211Z",
+    "kind": "pre-registered",
+    "discovery": {
+      "n": 893,
+      "avg": 0.1499000307875942,
+      "dayClustered": 0.2213834881710085
+    },
+    "test": {
+      "n": 1372,
+      "avg": -0.19103531465196588,
+      "dayClustered": -0.2272095086557155
+    },
+    "verdict": "FAIL"
+  },
+  {
+    "id": "paper151-industry-reversion-ratchet",
+    "name": "151 Strategies §3.9 Industry-neutral mean-reversion — ratcheting-stop swing rule",
+    "plan": "paper151-ratchet-plan.md",
+    "ranAt": "2026-11-21T11:28:02.206Z",
+    "kind": "pre-registered",
+    "discovery": {
+      "n": 1871,
+      "avg": -0.006282978546932692,
+      "dayClustered": 0.015859093954766756
+    },
+    "test": {
+      "n": 1788,
+      "avg": -0.503362028382665,
+      "dayClustered": -0.5537475766880714
+    },
+    "verdict": "FAIL"
+  },
+  {
+    "id": "paper151-ibs-ratchet",
+    "name": "151 Strategies §4.4 Internal bar strength — ratcheting-stop swing rule",
+    "plan": "paper151-ratchet-plan.md",
+    "ranAt": "2026-11-21T11:28:05.395Z",
+    "kind": "pre-registered",
+    "discovery": {
+      "n": 1888,
+      "avg": -0.37094858245795254,
+      "dayClustered": -0.4831307464447272
+    },
+    "test": {
+      "n": 1747,
+      "avg": -0.6481772773995437,
+      "dayClustered": -0.7070698912083361
+    },
+    "verdict": "FAIL"
+  },
+  {
+    "id": "paper151-ma-single-ratchet",
+    "name": "151 Strategies §3.11 Single moving average — ratcheting-stop swing rule",
+    "plan": "paper151-ratchet-plan.md",
+    "ranAt": "2026-11-21T11:28:07.377Z",
+    "kind": "pre-registered",
+    "discovery": {
+      "n": 1435,
+      "avg": -0.28562343443356303,
+      "dayClustered": -0.30876220942275284
+    },
+    "test": {
+      "n": 1415,
+      "avg": -0.6871784214036348,
+      "dayClustered": -0.7578462006104991
+    },
+    "verdict": "FAIL"
+  },
+  {
+    "id": "paper151-ma-two-ratchet",
+    "name": "151 Strategies §3.12 Two moving averages — ratcheting-stop swing rule",
+    "plan": "paper151-ratchet-plan.md",
+    "ranAt": "2026-11-21T11:28:09.273Z",
+    "kind": "pre-registered",
+    "discovery": {
+      "n": 1448,
+      "avg": -0.0010410489927372088,
+      "dayClustered": 0.04554503781668199
+    },
+    "test": {
+      "n": 1433,
+      "avg": -0.5757537352845332,
+      "dayClustered": -0.5238116357136353
+    },
+    "verdict": "FAIL"
+  },
+  {
+    "id": "paper151-ma-three-ratchet",
+    "name": "151 Strategies §3.13 Three moving averages — ratcheting-stop swing rule",
+    "plan": "paper151-ratchet-plan.md",
+    "ranAt": "2026-11-21T11:28:11.780Z",
+    "kind": "pre-registered",
+    "discovery": {
+      "n": 1505,
+      "avg": -0.03478297049774261,
+      "dayClustered": -0.04302788871515869
+    },
+    "test": {
+      "n": 1540,
+      "avg": -0.2848704781676844,
+      "dayClustered": -0.3247803743376131
+    },
+    "verdict": "FAIL"
+  },
+  {
+    "id": "paper151-pivot-ratchet",
+    "name": "151 Strategies §3.14 Pivot support/resistance — ratcheting-stop swing rule",
+    "plan": "paper151-ratchet-plan.md",
+    "ranAt": "2026-11-21T11:28:15.289Z",
+    "kind": "pre-registered",
+    "discovery": {
+      "n": 1400,
+      "avg": -0.17695066256977526,
+      "dayClustered": -0.18120493665269655
+    },
+    "test": {
+      "n": 1433,
+      "avg": -0.46371488479294426,
+      "dayClustered": -0.5079379000949135
+    },
+    "verdict": "FAIL"
+  },
+  {
+    "id": "paper151-donchian-ratchet",
+    "name": "151 Strategies §3.15 Donchian channel — ratcheting-stop swing rule",
+    "plan": "paper151-ratchet-plan.md",
+    "ranAt": "2026-11-21T11:28:17.372Z",
+    "kind": "pre-registered",
+    "discovery": {
+      "n": 1432,
+      "avg": -0.3221930751465901,
+      "dayClustered": -0.3455465279093308
+    },
+    "test": {
+      "n": 1326,
+      "avg": -0.5352344877076396,
+      "dayClustered": -0.8116214365639882
+    },
+    "verdict": "FAIL"
+  },
+  {
+    "id": "paper151-knn-ratchet",
+    "name": "151 Strategies §3.17 Single-stock k-nearest neighbours — ratcheting-stop swing rule",
+    "plan": "paper151-ratchet-plan.md",
+    "ranAt": "2026-11-21T11:28:19.627Z",
+    "kind": "pre-registered",
+    "discovery": {
+      "n": 2126,
+      "avg": -0.20922552544705,
+      "dayClustered": -0.21486317941428265
+    },
+    "test": {
+      "n": 2074,
+      "avg": -0.5671988924145902,
+      "dayClustered": -0.5815331610361707
+    },
+    "verdict": "FAIL"
+  },
+  {
+    "id": "paper151-dual-momentum-ratchet",
+    "name": "151 Strategies §4.1.2 Dual-momentum sector rotation — ratcheting-stop swing rule",
+    "plan": "paper151-ratchet-plan.md",
+    "ranAt": "2026-11-21T11:28:20.424Z",
+    "kind": "pre-registered",
+    "discovery": {
+      "n": 634,
+      "avg": 0.3940418283778243,
+      "dayClustered": 0.3908470862466753
+    },
+    "test": {
+      "n": 409,
+      "avg": -0.7695549780170776,
+      "dayClustered": -0.9339084908436077
     },
     "verdict": "FAIL"
   }

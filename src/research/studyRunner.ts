@@ -47,7 +47,31 @@ export interface SetupCard {
      * next open on each signal day with `exit`. Adds two pass rules: average excess
      * and day-clustered excess vs the control must both be > 0 on the test period.
      */
-    control?: { label: string; include: (ctx: SignalContext) => boolean; exit: ExitPlan };
+    control?: { label: string; include: (ctx: SignalContext) => boolean; exit: ExitPlan; includeOn?: (symbol: string, date: string) => boolean };
+    /** Optional cross-sectional pre-pass over all loaded stocks, run once before signals are read. */
+    prepare?: (data: StudyData) => void;
+}
+
+/** Everything a study needs, loaded once and shareable between cards. */
+export interface StudyData {
+    universe: Map<string, Set<string>>;
+    industries: Map<string, string>;
+    nifty: PriceBar[];
+    niftyInd: SeriesIndicators;
+    /** Adjusted bars and indicators for every symbol that was ever in the universe (≥ 60 bars). */
+    series: Map<string, { bars: PriceBar[]; ind: SeriesIndicators }>;
+}
+
+export async function loadStudyData(): Promise<StudyData> {
+    const universe = await loadUniverse();
+    const industries = loadIndustries();
+    const nifty = (await loadAdjustedDailySeries('NIFTY_50')).bars;
+    const series = new Map<string, { bars: PriceBar[]; ind: SeriesIndicators }>();
+    for (const symbol of universe.keys()) {
+        const bars = (await loadAdjustedDailySeries(symbol)).bars;
+        if (bars.length >= 60) series.set(symbol, { bars, ind: computeSeriesIndicators(bars) });
+    }
+    return { universe, industries, nifty, niftyInd: computeSeriesIndicators(nifty), series };
 }
 
 export interface StudyResult {
@@ -106,12 +130,11 @@ const statsRow = (label: string, s: TradeStats) => s.n
     : `| ${label} | 0 | — | — | — | — | — |`;
 const STATS_HEAD = '| Period | Trades | Signal days | Win rate | Avg net (95% range) | Day-clustered | Without best 5 days |\n|---|---:|---:|---:|---:|---:|---:|';
 
-export async function runSetupStudy(card: SetupCard, kind: RegistryEntry['kind'] = 'pre-registered', note?: string): Promise<StudyResult> {
+export async function runSetupStudy(card: SetupCard, kind: RegistryEntry['kind'] = 'pre-registered', note?: string, shared?: StudyData): Promise<StudyResult> {
     const rules: HarnessRules = { ...DEFAULT_RULES, ...card.rules };
-    const universe = await loadUniverse();
-    const industries = loadIndustries();
-    const nifty = (await loadAdjustedDailySeries('NIFTY_50')).bars;
-    const niftyInd = computeSeriesIndicators(nifty);
+    const data = shared ?? await loadStudyData();
+    const { universe, industries, nifty, niftyInd } = data;
+    card.prepare?.(data);
     const marketUpByDate = new Map(nifty.map((bar, i) => [bar.date, Number.isFinite(niftyInd.sma50[i]) ? bar.close > niftyInd.sma50[i] : undefined]));
     const above200ByDate = new Map(nifty.map((bar, i) => [bar.date, Number.isFinite(niftyInd.sma200[i]) ? bar.close > niftyInd.sma200[i] : undefined]));
     const marketTrendByDate = new Map(nifty.map((bar, i) => [bar.date, i >= 10 && Number.isFinite(niftyInd.sma50[i - 10])
@@ -120,14 +143,14 @@ export async function runSetupStudy(card: SetupCard, kind: RegistryEntry['kind']
     const ctxBase = { marketUp: (date: string) => marketUpByDate.get(date), marketAbove200: (date: string) => above200ByDate.get(date), marketTrendUp: (date: string) => marketTrendByDate.get(date) };
 
     const barsBySymbol = new Map<string, PriceBar[]>();
-    const controlSeries: Array<{ bars: PriceBar[]; at: Map<string, number>; eligible: Set<string> }> = [];
+    const controlSeries: Array<{ symbol: string; bars: PriceBar[]; at: Map<string, number>; eligible: Set<string> }> = [];
     let candidates: Candidate[] = [];
     for (const [symbol, eligible] of universe) {
-        const bars = (await loadAdjustedDailySeries(symbol)).bars;
-        if (bars.length < 60) continue;
-        const ind = computeSeriesIndicators(bars);
+        const loaded = data.series.get(symbol);
+        if (!loaded) continue;
+        const { bars, ind } = loaded;
         const industry = industries.get(symbol) ?? 'Unknown';
-        if (card.control?.include({ symbol, industry, ...ctxBase })) controlSeries.push({ bars, at: new Map(bars.map((bar, k) => [bar.date, k])), eligible });
+        if (card.control?.include({ symbol, industry, ...ctxBase })) controlSeries.push({ symbol, bars, at: new Map(bars.map((bar, k) => [bar.date, k])), eligible });
         let used = false;
         const extra = card.extras ? await card.extras(symbol, bars) : undefined;
         for (let i = 50; i < bars.length - 1; i += 1) {
@@ -170,6 +193,7 @@ export async function runSetupStudy(card: SetupCard, kind: RegistryEntry['kind']
         for (const date of new Set(trades.map(trade => trade.signalDate))) {
             const values: number[] = [];
             for (const series of controlSeries) {
+                if (card.control.includeOn && !card.control.includeOn(series.symbol, date)) continue;
                 const k = series.at.get(date);
                 if (k === undefined || !series.eligible.has(date) || k + 1 >= series.bars.length) continue;
                 if (exit.maxGapUpPct !== undefined && series.bars[k + 1].open > series.bars[k].close * (1 + exit.maxGapUpPct / 100)) continue;

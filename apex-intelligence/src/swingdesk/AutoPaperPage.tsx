@@ -7,6 +7,7 @@ type Scorecard = {
   strategy: string; closed: number; targets: number; stops: number; expired: number;
   hitRate: number | null; avgNetPct: number | null; avgSessions: number | null;
   open: number; pending: number; skipped: number; verdict: string;
+  vsNiftyPct?: number | null; vsControlPct?: number | null;
 };
 type PaperTrade = {
   id: string; strategy: string; symbol: string; signalDate: string; state: string; reason: string; signalClose: number;
@@ -27,15 +28,41 @@ const NAMES: Record<string, string> = {
   SECTOR_MOMENTUM: 'Sector momentum',
   DELIVERY_OI: 'Delivery + OI',
   STRENGTH_PLUS_BUYING: 'Strength + buying',
+  TOP5_HOLD: 'Top 5 · hold a month',
+  TOP5_RATCHET: 'Top 5 · ratcheting stop',
+  RANDOM5_HOLD: 'Random 5 · hold a month',
+  RANDOM5_RATCHET: 'Random 5 · ratcheting stop',
 };
+const MONTHLY = new Set(['TOP5_HOLD', 'TOP5_RATCHET', 'RANDOM5_HOLD', 'RANDOM5_RATCHET']);
 const STATE_LABEL: Record<string, string> = {
-  PENDING: 'Waiting to enter', OPEN: 'Open', TARGET: 'Hit +5%', STOP: 'Stopped', EXPIRED: 'Time exit', SKIPPED_GAP: 'Skipped (gap up)',
+  PENDING: 'Waiting to enter', OPEN: 'Open', TARGET: 'Hit target', STOP: 'Stopped', EXPIRED: 'Time exit', SKIPPED_GAP: 'Skipped (gap up)',
 };
 const name = (s: string) => NAMES[s] ?? s;
 const pct = (v: number | null, digits = 2) => (v === null || !Number.isFinite(v) ? '—' : `${v >= 0 ? '+' : ''}${v.toFixed(digits)}%`);
 const price = (v: number | null) => (v === null ? '—' : `₹${v.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`);
 const day = (v: string | null) => (v ? new Date(`${v}T00:00:00Z`).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', timeZone: 'UTC' }) : '—');
 const verdictClass = (v: string) => (v.startsWith('WORKING') ? 'working' : v.startsWith('NOT') ? 'failing' : 'collecting');
+
+function MonthlyCard({ card, description }: { card: Scorecard; description: string }) {
+  const isControl = card.strategy.startsWith('RANDOM');
+  const progress = verdictProgress(card, 30);
+  const tone = (v: number | null | undefined) => (v === null || v === undefined ? '' : v >= 0 ? 'sd-positive' : 'sd-negative');
+  return (
+    <section className={`sd-panel sd-ap-card ${isControl ? 'collecting' : verdictClass(card.verdict)}`} aria-label={`${name(card.strategy)} scorecard`}>
+      <div className="sd-section-title"><h3>{name(card.strategy)}</h3><span className={`sd-ap-verdict ${isControl ? 'collecting' : verdictClass(card.verdict)}`}>{isControl ? 'Control' : card.verdict.startsWith('Collecting') ? 'Collecting' : card.verdict}</span></div>
+      <p className="sd-ap-desc">{description}</p>
+      <div className="sd-ap-figures">
+        <div><span>Avg per trade</span><strong className={tone(card.avgNetPct)}>{pct(card.avgNetPct)}</strong><small>after costs</small></div>
+        <div><span>vs NIFTY</span><strong className={tone(card.vsNiftyPct)}>{pct(card.vsNiftyPct ?? null)}</strong><small>same days</small></div>
+        {isControl
+          ? <div><span>Avg days held</span><strong>{card.avgSessions === null ? '—' : card.avgSessions.toFixed(1)}</strong><small>trading days</small></div>
+          : <div><span>vs random 5</span><strong className={tone(card.vsControlPct)}>{pct(card.vsControlPct ?? null)}</strong><small>must be &gt; 0</small></div>}
+      </div>
+      {!isControl && <div className="sd-ap-progress" role="progressbar" aria-valuenow={card.closed} aria-valuemin={0} aria-valuemax={30} aria-label="Closed trades toward a verdict"><i style={{ width: `${progress}%` }} /></div>}
+      <p className="sd-ap-counts">{card.closed}{isControl ? '' : '/30'} closed · {card.targets} hit target · {card.stops} stopped · {card.expired} time · {card.open} open · {card.pending} waiting</p>
+    </section>
+  );
+}
 
 /** Pure: progress toward a verdict, 0–100. */
 export function verdictProgress(card: Scorecard, needed: number): number {
@@ -103,6 +130,15 @@ export function AutoPaperPage({ ready, onOpenStock }: { ready: boolean; onOpenSt
       {!ready && <p className="sd-plan-help">Connect your workspace to load the paper record.</p>}
 
       {view && rules && <>
+        <section className="sd-panel sd-desk-card sd-ap-monthly">
+          <div className="sd-section-title"><h3>Monthly top 5 · trade less</h3><span>picked on the first trading day of each month</span></div>
+          <p className="sd-ap-desc">Every stock is ranked by 12-1 momentum, residual momentum and its latest earnings surprise. Only the top 5 are taken (at most 2 per industry), next to 5 random stocks picked the same day. It works only if the top 5 beat both the random 5 and NIFTY after 30 closed trades.</p>
+          <div className="sd-ap-grid">
+            {view.scorecards.filter(c => MONTHLY.has(c.strategy)).map(card => <MonthlyCard key={card.strategy} card={card} description={view.strategies[card.strategy] ?? ''} />)}
+          </div>
+        </section>
+
+        <h2 className="sd-ap-subhead">Daily strategies · +5% rule</h2>
         <section className="sd-panel sd-ap-rules">
           <div><span>Entry</span><strong>Next day's open</strong><small>skipped if it opens &gt; {rules.maxGapUpPct}% higher</small></div>
           <div><span>Target</span><strong className="sd-positive">+{rules.targetPct}%</strong></div>
@@ -113,7 +149,7 @@ export function AutoPaperPage({ ready, onOpenStock }: { ready: boolean; onOpenSt
         </section>
 
         <div className="sd-ap-grid">
-          {view.scorecards.map(card => <ScoreCard key={card.strategy} card={card} rules={rules} description={view.strategies[card.strategy] ?? ''} />)}
+          {view.scorecards.filter(c => !MONTHLY.has(c.strategy)).map(card => <ScoreCard key={card.strategy} card={card} rules={rules} description={view.strategies[card.strategy] ?? ''} />)}
         </div>
 
         <section className="sd-panel sd-desk-card">

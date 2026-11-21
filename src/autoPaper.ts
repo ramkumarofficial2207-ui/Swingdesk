@@ -10,6 +10,7 @@ import { computeSeriesIndicators, momentumReturn, SeriesIndicators, topThreshold
 import { trendRidePullback } from './research/cards/trendRide';
 import { loadIndustries } from './research/studyRunner';
 import { factorAfter } from './paperTracker';
+import { recordTopPicks, TOP_EXITS } from './topPicks';
 
 /**
  * Automatic paper trading (never places orders).
@@ -30,13 +31,26 @@ import { factorAfter } from './paperTracker';
 
 export const AUTO_RULES = { perStrategy: 3, targetPct: 5, stopPct: 2.5, horizon: 15, maxGapUpPct: 3, costBps: 40, verdictTrades: 30, breakEvenHitRate: 40 } as const;
 export const AUTO_EXIT: ExitPlan = { stopPct: AUTO_RULES.stopPct, targetPct: AUTO_RULES.targetPct, horizon: AUTO_RULES.horizon, maxGapUpPct: AUTO_RULES.maxGapUpPct };
-export type Strategy = 'TREND_PULLBACK' | 'SECTOR_MOMENTUM' | 'DELIVERY_OI' | 'STRENGTH_PLUS_BUYING';
+export type Strategy = 'TREND_PULLBACK' | 'SECTOR_MOMENTUM' | 'DELIVERY_OI' | 'STRENGTH_PLUS_BUYING' | 'TOP5_HOLD' | 'TOP5_RATCHET' | 'RANDOM5_HOLD' | 'RANDOM5_RATCHET';
 export const STRATEGIES: Record<Strategy, string> = {
     TREND_PULLBACK: 'Top 10% 6-month strength, uptrend, 3–8% pullback to the 20-day average, NIFTY trending up',
     SECTOR_MOMENTUM: 'Industry with ≥ 4 stocks in the day’s top 30 gainers; its most-traded names above the 50-day average',
     DELIVERY_OI: 'Up ≥ 1% with delivery % ≥ 1.5× its 20-day average and futures OI up ≥ 3% (long build-up), above the 50-day average',
     STRENGTH_PLUS_BUYING: 'Top 20% 6-month strength in an uptrend, bouncing ≥ 1% today with delivery ≥ 1.3× normal and futures OI up ≥ 2%',
+    TOP5_HOLD: 'Monthly top 5 by combined rank (12-1 momentum, residual momentum, earnings surprise), ≤ 2 per industry; hold 21 sessions',
+    TOP5_RATCHET: 'Same monthly top 5; stop −5.5%, target +8.5%, stop to buy price at +3.5%, +2.5% at +4.5%, +4.75% at +7%; max 15 sessions',
+    RANDOM5_HOLD: 'Control: 5 random universe stocks picked the same day; hold 21 sessions',
+    RANDOM5_RATCHET: 'Control: the same 5 random stocks with the ratcheting stop',
 };
+
+/** Monthly strategies and their controls, with their own exits (no gap filter). */
+export const MONTHLY: Partial<Record<Strategy, { exit: ExitPlan; control?: Strategy }>> = {
+    TOP5_HOLD: { exit: TOP_EXITS.HOLD, control: 'RANDOM5_HOLD' },
+    TOP5_RATCHET: { exit: TOP_EXITS.RATCHET, control: 'RANDOM5_RATCHET' },
+    RANDOM5_HOLD: { exit: TOP_EXITS.HOLD },
+    RANDOM5_RATCHET: { exit: TOP_EXITS.RATCHET },
+};
+export const exitFor = (strategy: string): ExitPlan => MONTHLY[strategy as Strategy]?.exit ?? AUTO_EXIT;
 
 /** Everything a picker needs about one stock at the signal close. */
 export interface StockSnapshot {
@@ -120,13 +134,13 @@ export interface TradeProgress {
 }
 
 /** Where a paper trade stands given the bars known now (pure). */
-export function progressAutoTrade(bars: PriceBar[], signalIndex: number): TradeProgress {
+export function progressAutoTrade(bars: PriceBar[], signalIndex: number, plan: ExitPlan = AUTO_EXIT): TradeProgress {
     const entryIndex = signalIndex + 1;
     if (entryIndex >= bars.length) return { state: 'PENDING' };
-    if (bars[entryIndex].open > bars[signalIndex].close * (1 + AUTO_RULES.maxGapUpPct / 100)) return { state: 'SKIPPED_GAP' };
-    const result = simulateTrade(bars, entryIndex, AUTO_EXIT, AUTO_RULES.costBps);
+    if (plan.maxGapUpPct !== undefined && bars[entryIndex].open > bars[signalIndex].close * (1 + plan.maxGapUpPct / 100)) return { state: 'SKIPPED_GAP' };
+    const result = simulateTrade(bars, entryIndex, plan, AUTO_RULES.costBps);
     if (!result) return { state: 'OPEN', entryIndex, entryPrice: bars[entryIndex].open };
-    const state = result.outcome === 'TARGET' ? 'TARGET' : result.outcome === 'STOP' ? 'STOP' : 'EXPIRED';
+    const state = result.outcome === 'TARGET' ? 'TARGET' : result.outcome === 'STOP' || result.outcome === 'TRAIL' ? 'STOP' : 'EXPIRED';
     return { state, entryIndex, entryPrice: result.entry, exitIndex: result.exitIndex, exitPrice: result.exit, netPct: result.netPct };
 }
 
@@ -140,7 +154,7 @@ async function latestSession(): Promise<string> {
 }
 
 /** Top 500 company shares by 20-session turnover on the given date (same rule as the studies). */
-async function universeOn(date: string): Promise<string[]> {
+export async function universeOn(date: string): Promise<string[]> {
     const rows = await prisma.$queryRaw<Array<{ symbol: string }>>`
         WITH t AS (
             SELECT c.symbol, c."tradingDate" AS d, c.series,
@@ -229,7 +243,7 @@ export async function advanceTrades(): Promise<{ checked: number; closed: number
         const bars = series.bars;
         if (bars[0]?.date !== signalKey) continue;
         const factor = factorAfter(events, signalKey); // adjusted prices → signal-day prices
-        const progress = progressAutoTrade(bars, 0);
+        const progress = progressAutoTrade(bars, 0, exitFor(trade.strategy));
         if (!['PENDING', 'OPEN'].includes(progress.state)) closed += 1;
         await prisma.autoPaperTrade.update({
             where: { id: trade.id },
@@ -260,29 +274,62 @@ export interface Scorecard {
     open: number;
     pending: number;
     skipped: number;
+    /** Average of each closed trade minus NIFTY 50 over the same days. */
+    vsNiftyPct: number | null;
+    /** For a monthly strategy: its average minus its random control's average. */
+    vsControlPct: number | null;
     verdict: string;
 }
 
-export function scorecard(strategy: Strategy, trades: Array<{ state: string; netPct: number | null; sessionsHeld: number | null }>): Scorecard {
+export function scorecard(strategy: Strategy, trades: Array<{ state: string; netPct: number | null; sessionsHeld: number | null; niftyPct?: number | null }>, controlAvg: number | null = null): Scorecard {
     const closed = trades.filter(t => ['TARGET', 'STOP', 'EXPIRED'].includes(t.state));
     const mean = (values: number[]) => (values.length ? values.reduce((s, v) => s + v, 0) / values.length : null);
     const targets = closed.filter(t => t.state === 'TARGET').length;
     const hitRate = closed.length ? (100 * targets) / closed.length : null;
     const avgNetPct = mean(closed.map(t => t.netPct ?? 0));
-    const verdict = closed.length < AUTO_RULES.verdictTrades
-        ? `Collecting (${closed.length}/${AUTO_RULES.verdictTrades} closed)`
-        : avgNetPct! > 0 && hitRate! >= AUTO_RULES.breakEvenHitRate ? 'WORKING on paper' : 'NOT WORKING';
+    const withNifty = closed.filter(t => t.niftyPct !== undefined && t.niftyPct !== null);
+    const vsNiftyPct = withNifty.length ? mean(withNifty.map(t => (t.netPct ?? 0) - t.niftyPct!)) : null;
+    const monthly = MONTHLY[strategy];
+    const vsControlPct = monthly?.control && avgNetPct !== null && controlAvg !== null ? avgNetPct - controlAvg : null;
+    const verdict = monthly && !monthly.control
+        ? 'Control (random picks)'
+        : closed.length < AUTO_RULES.verdictTrades
+            ? `Collecting (${closed.length}/${AUTO_RULES.verdictTrades} closed)`
+            : monthly
+                ? avgNetPct! > 0 && (vsControlPct ?? -1) > 0 && (vsNiftyPct ?? -1) > 0 ? 'WORKING on paper' : 'NOT WORKING'
+                : avgNetPct! > 0 && hitRate! >= AUTO_RULES.breakEvenHitRate ? 'WORKING on paper' : 'NOT WORKING';
     return {
         strategy, closed: closed.length, targets, stops: closed.filter(t => t.state === 'STOP').length, expired: closed.filter(t => t.state === 'EXPIRED').length,
         hitRate, avgNetPct, avgSessions: mean(closed.map(t => t.sessionsHeld ?? 0)),
         open: trades.filter(t => t.state === 'OPEN').length, pending: trades.filter(t => t.state === 'PENDING').length, skipped: trades.filter(t => t.state === 'SKIPPED_GAP').length,
-        verdict,
+        vsNiftyPct, vsControlPct, verdict,
     };
+}
+
+type TradeRow = Awaited<ReturnType<typeof prisma.autoPaperTrade.findMany>>[number];
+
+/** Scorecards for every strategy, with each closed trade compared to NIFTY 50 over the same days. */
+export async function buildScorecards(all: TradeRow[]): Promise<Scorecard[]> {
+    const closed = all.filter(t => t.entryDate && t.exitDate);
+    const first = closed.reduce<Date | null>((min, t) => (!min || t.entryDate! < min ? t.entryDate! : min), null);
+    const nifty = first ? (await loadAdjustedDailySeries('NIFTY_50', { from: first })).bars : [];
+    const byDate = new Map(nifty.map(b => [b.date, b]));
+    const niftyPct = (t: TradeRow): number | null => {
+        const a = t.entryDate ? byDate.get(key(t.entryDate)) : undefined;
+        const b = t.exitDate ? byDate.get(key(t.exitDate)) : undefined;
+        return a && b && a.open > 0 ? (b.close / a.open - 1) * 100 : null;
+    };
+    const rows = (s: Strategy) => all.filter(t => t.strategy === s).map(t => ({ state: t.state, netPct: t.netPct, sessionsHeld: t.sessionsHeld, niftyPct: niftyPct(t) }));
+    const base = new Map((Object.keys(STRATEGIES) as Strategy[]).map(s => [s, scorecard(s, rows(s))]));
+    return (Object.keys(STRATEGIES) as Strategy[]).map(s => {
+        const control = MONTHLY[s]?.control;
+        return control ? scorecard(s, rows(s), base.get(control)!.avgNetPct) : base.get(s)!;
+    });
 }
 
 export async function writeReport(latestPicks: Pick[], date: string): Promise<Scorecard[]> {
     const all = await prisma.autoPaperTrade.findMany({ orderBy: [{ signalDate: 'desc' }, { strategy: 'asc' }, { rank: 'asc' }] });
-    const cards = (Object.keys(STRATEGIES) as Strategy[]).map(s => scorecard(s, all.filter(t => t.strategy === s)));
+    const cards = await buildScorecards(all);
     const f = (v: number | null, digits = 1, suffix = '') => (v === null ? '—' : `${v.toFixed(digits)}${suffix}`);
     const sign = (v: number | null) => (v === null ? '—' : `${v >= 0 ? '+' : ''}${v.toFixed(2)}%`);
     const lines = [
@@ -357,7 +404,7 @@ export async function getAutoPaperView(limit = 300): Promise<AutoPaperView> {
         rules: AUTO_RULES,
         strategies: STRATEGIES,
         latestSignalDate: all[0] ? key(all[0].signalDate) : null,
-        scorecards: (Object.keys(STRATEGIES) as Strategy[]).map(s => scorecard(s, all.filter(t => t.strategy === s))),
+        scorecards: await buildScorecards(all),
         trades: all.slice(0, limit).map(t => ({
             id: t.id, strategy: t.strategy, symbol: t.symbol, signalDate: key(t.signalDate), state: t.state, reason: t.reason, signalClose: t.signalClose,
             entryDate: d(t.entryDate), entryPrice: t.entryPrice, exitDate: d(t.exitDate), exitPrice: t.exitPrice, netPct: t.netPct, sessionsHeld: t.sessionsHeld,
@@ -370,6 +417,12 @@ export async function runAutoPaper(date?: string): Promise<Scorecard[]> {
     const session = date ?? (await latestSession());
     const { checked, closed } = await advanceTrades();
     const picks = await recordPicks(session);
+    try {
+        const added = await recordTopPicks(session, await universeOn(session));
+        if (added) console.log(`[AutoPaper] ${session}: monthly top-5 and random-5 picks recorded (${added} paper trades).`);
+    } catch (error: any) {
+        console.warn('[AutoPaper] Monthly top-5 picks failed:', error?.message ?? error);
+    }
     const cards = await writeReport(picks, session);
     console.log(`[AutoPaper] ${session}: advanced ${checked} (closed ${closed}); new picks ${picks.length} (${picks.map(p => `${p.strategy}:${p.symbol}`).join(', ') || 'none'})`);
     for (const c of cards) console.log(`[AutoPaper] ${c.strategy}: ${c.verdict}; hit rate ${c.hitRate === null ? '—' : c.hitRate.toFixed(1) + '%'}, avg ${c.avgNetPct === null ? '—' : c.avgNetPct.toFixed(2) + '%'}`);
