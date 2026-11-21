@@ -893,5 +893,96 @@
       "dayClustered": -0.6765439403113281
     },
     "verdict": "FAIL"
+  },
+  {
+    "id": "volume-ratchet-v1",
+    "name": "Rising volume before the move V1 + ratcheting stop",
+    "plan": "volume-rise-ratchet-plan.md",
+    "ranAt": "2026-11-21T11:16:16.367Z",
+    "kind": "pre-registered",
+    "discovery": {
+      "n": 2059,
+      "avg": -0.40951310127800694,
+      "dayClustered": -0.402259651555152
+    },
+    "test": {
+      "n": 2013,
+      "avg": -1.0242272980175664,
+      "dayClustered": -1.064295386051338
+    },
+    "verdict": "FAIL"
+  },
+  {
+    "id": "volume-ratchet-v2",
+    "name": "Rising volume before the move V2 + ratcheting stop",
+    "plan": "volume-rise-ratchet-plan.md",
+    "ranAt": "2026-11-21T11:16:18.435Z",
+    "kind": "pre-registered",
+    "discovery": {
+      "n": 2093,
+      "avg": -0.43339796069466374,
+      "dayClustered": -0.438455392821993
+    },
+    "test": {
+      "n": 2018,
+      "avg": -0.9031745162511085,
+      "dayClustered": -0.9355041986661624
+    },
+    "verdict": "FAIL"
+  },
+  {
+    "id": "volume-ratchet-v3",
+    "name": "Rising volume before the move V3 + ratcheting stop",
+    "plan": "volume-rise-ratchet-plan.md",
+    "ranAt": "2026-11-21T11:16:20.362Z",
+    "kind": "pre-registered",
+    "discovery": {
+      "n": 1560,
+      "avg": -0.30787401333641523,
+      "dayClustered": -0.24937034000278743
+    },
+    "test": {
+      "n": 1506,
+      "avg": -0.8883101252006546,
+      "dayClustered": -0.9877923590489535
+    },
+    "verdict": "FAIL"
+  },
+  {
+    "id": "volume-ratchet-v4",
+    "name": "Rising volume before the move V4 + ratcheting stop",
+    "plan": "volume-rise-ratchet-plan.md",
+    "ranAt": "2026-11-21T11:16:22.638Z",
+    "kind": "pre-registered",
+    "discovery": {
+      "n": 2073,
+      "avg": -0.35815786462378624,
+      "dayClustered": -0.34457301618892483
+    },
+    "test": {
+      "n": 1982,
+      "avg": -0.7601233360139228,
+      "dayClustered": -0.7628633544302683
+    },
+    "verdict": "FAIL"
+  },
+  {
+    "id": "volume-ratchet-v3-old-exit",
+    "name": "Rising volume before the move V3 (old +5/−2.5 exit, comparison only)",
+    "plan": "volume-rise-ratchet-plan.md",
+    "ranAt": "2026-11-21T11:16:24.711Z",
+    "kind": "exploration",
+    "discovery": {
+      "n": 1946,
+      "avg": -0.5053707282528976,
+      "dayClustered": -0.4982797546022137
+    },
+    "test": {
+      "n": 1888,
+      "avg": -0.8334432188600602,
+      "dayClustered": -0.8119831132460729
+    },
+    "verdict": "FAIL",
+    "note": "Same entry as the primary with the old exit, for comparison only."
   }
 ]
