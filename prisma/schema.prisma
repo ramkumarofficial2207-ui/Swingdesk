@@ -855,3 +855,30 @@ model AutoPaperTrade {
   @@unique([strategy, symbol, signalDate])
   @@index([state])
 }
+
+/// Quarterly results from NSE XBRL filings (src/quarterlyResultsBackfill.ts). One row per
+/// company, quarter and basis, from the FIRST filing (later revisions are ignored so the
+/// figures are what the market saw). Amounts in rupees. publishedAt = NSE dissemination time.
+model QuarterlyResult {
+  id              String    @id @default(uuid()) @db.Uuid
+  symbol          String
+  periodStart     DateTime? @db.Date
+  periodEnd       DateTime  @db.Date
+  consolidated    Boolean
+  publishedAt     DateTime
+  audited         String?
+  revenue         Float?
+  profitBeforeTax Float?
+  netProfit       Float?
+  netProfitOwners Float?
+  eps             Float?
+  bank            Boolean   @default(false)
+  xbrlUrl         String?
+  seqNumber       String?
+  /// OK | NO_XBRL | NO_VALUES | FETCH_FAILED
+  parseStatus     String
+  createdAt       DateTime  @default(now())
+
+  @@unique([symbol, periodEnd, consolidated])
+  @@index([publishedAt])
+}

@@ -63,6 +63,7 @@
         "paper:auto": "node --max-old-space-size=4096 -r ts-node/register/transpile-only src/autoPaper.ts",
         "paper:nightly": "node --max-old-space-size=4096 -r ts-node/register/transpile-only src/nightlyAutoPaper.ts",
         "research:paper151": "node --max-old-space-size=12288 -r ts-node/register/transpile-only src/research/cards/paper151.ts",
+        "data:quarterly-results": "ts-node --transpile-only src/quarterlyResultsBackfill.ts",
         "research:volume-ratchet": "node --max-old-space-size=8192 -r ts-node/register/transpile-only src/research/cards/volumeRiseRatchet.ts"
     },
     "dependencies": {
