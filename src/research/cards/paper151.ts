@@ -87,6 +87,7 @@ export interface Paper151Row { id: BaselineId; mode: Paper151Mode; result: Study
 async function main(): Promise<void> {
     const only = process.argv.find(arg => arg.startsWith('--only='))?.slice(7).split(',') as BaselineId[] | undefined;
     const modes: Paper151Mode[] = process.argv.includes('--ratchet') ? ['ratchet'] : ['own', 'swing'];
+    const planFile = modes[0] === 'ratchet' ? 'paper151-ratchet-plan.md' : 'paper151-plan.md';
     const reportName = process.argv.includes('--ratchet') ? 'paper151-ratchet.md' : only ? 'paper151-partial.md' : 'paper151.md';
     const started = Date.now();
     const data = await loadStudyData();
@@ -105,7 +106,7 @@ async function main(): Promise<void> {
     const lines = [
         '# "151 Trading Strategies": equity baselines on NSE data',
         '',
-        `Generated: ${new Date().toISOString()} · evaluation harness v3 · pre-registered plan: [\`paper151-plan.md\`](paper151-plan.md) · ${rows.length} trials in this run`,
+        `Generated: ${new Date().toISOString()} · evaluation harness v3 · pre-registered plan: [\`${planFile}\`](${planFile}) · ${rows.length} trials in this run`,
         '',
         '"Kept" = every harness check passes on the test period (2024–2026), the test edge over the control group is positive (average and per day), and the discovery-period edge over the control is positive too.',
         '',
