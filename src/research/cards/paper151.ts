@@ -123,7 +123,7 @@ async function main(): Promise<void> {
         'Research output, not investment advice.',
         '',
     ];
-    writeFileSync(join('reports', only ? 'paper151-partial.md' : 'paper151.md'), lines.join('\n'));
+    writeFileSync(join('reports', reportName), lines.join('\n'));
     console.log(`[Paper151] done in ${((Date.now() - started) / 60000).toFixed(1)} min; kept: ${kept.map(row => `${row.id}/${row.mode}`).join(', ') || 'none'}`);
 }
 
