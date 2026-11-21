@@ -26,3 +26,5 @@
 .sd-ap-filter{display:flex;align-items:center;gap:8px;font-size:10px;color:#94a095}
 @media(max-width:1200px){.sd-ap-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.sd-ap-rules{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:640px){.sd-ap-grid{grid-template-columns:1fr}.sd-ap-rules{grid-template-columns:repeat(2,minmax(0,1fr));padding:14px 16px}.sd-ap-desc{min-height:0}}
+.sd-ap-monthly{margin-bottom:19px}.sd-ap-monthly .sd-ap-grid{margin:14px 0 0}.sd-ap-monthly>.sd-ap-desc{max-width:900px;min-height:0}
+.sd-ap-subhead{font-size:16px;margin:4px 0 12px}

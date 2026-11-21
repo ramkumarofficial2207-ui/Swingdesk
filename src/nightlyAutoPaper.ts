@@ -3,6 +3,7 @@ import prisma from './prismaClient';
 import { runEodMarketDataPipeline } from './eodMarketDataService';
 import { backfillFno } from './fnoBhavcopy';
 import { runAutoPaper, setLastAutoPaperRun } from './autoPaper';
+import { refreshRecentResults } from './quarterlyResultsBackfill';
 
 /**
  * Evening job for auto paper trading, independent of the scanner switches:
@@ -37,9 +38,17 @@ async function run(): Promise<string> {
     since.setUTCDate(since.getUTCDate() - 14);
     const fno = await backfillFno(since.toISOString().slice(0, 10), istToday());
     if (fno.failed.length) console.warn(`[AutoPaperNightly] F&O failures: ${fno.failed.join('; ')}`);
+    // New quarterly results (NSE integrated filings, last 10 days) for the earnings-surprise score.
+    let results = '';
+    try {
+        const r = await refreshRecentResults(10);
+        results = `; ${r.added} new quarterly result(s)`;
+    } catch (error: any) {
+        console.warn('[AutoPaperNightly] Quarterly results refresh failed; using the stored ones:', error?.message ?? error);
+    }
     const cards = await runAutoPaper(latest);
     const active = cards.reduce((n, c) => n + c.open + c.pending, 0);
-    return `Signals from ${latest} recorded; ${fno.loaded} new F&O day(s); ${active} trade(s) open or waiting to enter.`;
+    return `Signals from ${latest} recorded; ${fno.loaded} new F&O day(s)${results}; ${active} trade(s) open or waiting to enter.`;
 }
 
 export async function runAutoPaperNightly(): Promise<string> {

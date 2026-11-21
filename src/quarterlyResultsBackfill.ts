@@ -247,7 +247,65 @@ async function loadSymbol(symbol: string): Promise<{ added: number; ok: number }
     return { added, ok };
 }
 
+const ddmmyyyy = (d: Date) => `${String(d.getUTCDate()).padStart(2, '0')}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${d.getUTCFullYear()}`;
+
+/**
+ * Nightly top-up: every results filing NSE published in the last `days` days (integrated
+ * filings, paged), for companies that were ever in the universe. Keeps each company's
+ * stored basis (consolidated or standalone); a company seen for the first time uses
+ * consolidated when it filed both. Safe to run while a backfill is running.
+ */
+export async function refreshRecentResults(days = 10): Promise<{ seen: number; added: number }> {
+    await refreshSession();
+    const to = new Date();
+    const from = new Date(to.getTime() - days * 86_400_000);
+    const rows: ListingRow[] = [];
+    for (let page = 1; page <= 20; page += 1) {
+        const res = await axios.get(INTEGRATED_API, {
+            params: { index: 'equities', type: 'Integrated Filing- Financials', from_date: ddmmyyyy(from), to_date: ddmmyyyy(to), size: 500, page },
+            headers: { ...HEADERS, Cookie: cookie }, timeout: 30000,
+        });
+        const batch = parseIntegratedListing(res.data);
+        rows.push(...batch);
+        const total = Number((res.data as any)?.totalCount ?? 0);
+        await sleep(PAUSE_MS);
+        if (!total || page * 500 >= total) break;
+    }
+    const universe = new Set(await symbolsToLoad());
+    const basisRows = await prisma.quarterlyResult.groupBy({ by: ['symbol', 'consolidated'], _count: true });
+    const storedBasis = new Map<string, boolean>();
+    for (const symbol of new Set(basisRows.map(r => r.symbol))) {
+        const c = basisRows.find(r => r.symbol === symbol && r.consolidated)?._count ?? 0;
+        const s = basisRows.find(r => r.symbol === symbol && !r.consolidated)?._count ?? 0;
+        storedBasis.set(symbol, c >= s);
+    }
+    let added = 0;
+    const bySymbol = new Map<string, ListingRow[]>();
+    for (const row of rows) if (universe.has(row.symbol)) { const list = bySymbol.get(row.symbol) ?? []; list.push(row); bySymbol.set(row.symbol, list); }
+    for (const [symbol, list] of bySymbol) {
+        const basis = storedBasis.get(symbol);
+        const chosen = basis === undefined ? chooseFilings(list) : chooseFilings(list.filter(r => r.consolidated === basis));
+        for (const f of chosen) {
+            const exists = await prisma.quarterlyResult.findUnique({ where: { symbol_periodEnd_consolidated: { symbol, periodEnd: f.periodEnd, consolidated: f.consolidated } }, select: { id: true } });
+            if (exists || !f.xbrlUrl) continue;
+            let values: XbrlValues;
+            try { values = parseXbrl(await fetchXbrl(f.xbrlUrl), day(f.periodStart), day(f.periodEnd)!); } catch { continue; }
+            await sleep(PAUSE_MS);
+            const status = values.netProfit === null && values.eps === null ? 'NO_VALUES' : 'OK';
+            await prisma.quarterlyResult.create({
+                data: { symbol, periodStart: f.periodStart, periodEnd: f.periodEnd, consolidated: f.consolidated, publishedAt: f.publishedAt, audited: f.audited, bank: f.bank, xbrlUrl: f.xbrlUrl, seqNumber: f.seqNumber, parseStatus: status, ...values },
+            }).then(() => { added += 1; }, () => undefined); // a parallel backfill may have stored it first
+        }
+    }
+    return { seen: rows.length, added };
+}
+
 async function main(): Promise<void> {
+    if (process.argv.includes('--recent')) {
+        const result = await refreshRecentResults(Number(process.argv.find(a => a.startsWith('--days='))?.slice(7) ?? 10));
+        console.log(`[QuarterlyResults] recent filings: ${result.seen} listed, ${result.added} added`);
+        return;
+    }
     const symbols = await symbolsToLoad();
     const workers = Math.max(1, Number(process.argv.find(a => a.startsWith('--workers='))?.slice(10) ?? 2));
     await refreshSession();
