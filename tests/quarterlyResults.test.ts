@@ -49,3 +49,35 @@ describe('quarterly results parsing', () => {
         expect(parseXbrl('<in-bse-fin:ProfitLossForPeriod contextRef="OneD" unitRef="INR">42</in-bse-fin:ProfitLossForPeriod>', '2021-04-01', '2021-06-30').netProfit).toBe(42);
     });
 });
+
+import { eventDay, standardizedSurprise, topDecile } from '../src/research/cards/earningsSurprise';
+
+describe('earnings surprise', () => {
+    const q = (end: string, p: number | null) => ({ periodEnd: end, netProfit: p });
+    const ends = ['2021-03-31', '2021-06-30', '2021-09-30', '2021-12-31', '2022-03-31', '2022-06-30', '2022-09-30', '2022-12-31', '2023-03-31', '2023-06-30', '2023-09-30', '2023-12-31', '2024-03-31'];
+
+    it('scores the latest quarter against its own year-ago history', () => {
+        // Profit grows 10 a year with small noise, then jumps.
+        const rows = ends.map((e, k) => q(e, 100 + 2.5 * k + (k % 3)));
+        rows[rows.length - 1] = q(ends[ends.length - 1], 200);
+        expect(standardizedSurprise(rows)!).toBeGreaterThan(10);
+        expect(standardizedSurprise(rows.slice(0, 9))).toBeNull(); // fewer than 6 year-ago differences
+    });
+
+    it('uses the board-meeting day, or the publish day if no meeting matches, and drops late filings', () => {
+        const at = new Date('2024-01-12T16:10:00Z'); // 21:40 IST on 12 Jan
+        expect(eventDay('2023-12-31', at, ['2024-01-12'])).toBe('2024-01-12');
+        expect(eventDay('2023-12-31', at, [])).toBe('2024-01-12');
+        expect(eventDay('2023-12-31', new Date('2024-01-12T19:00:00Z'), [])).toBe('2024-01-13'); // after midnight IST
+        expect(eventDay('2023-12-31', new Date('2024-06-01T10:00:00Z'), [])).toBeNull();
+        expect(eventDay('2023-12-31', new Date('2024-06-01T10:00:00Z'), ['2024-02-10'])).toBe('2024-02-10');
+    });
+
+    it('top decile uses only earlier events', () => {
+        const events = Array.from({ length: 150 }, (_, k) => ({ symbol: `S${k}`, eventDate: `2024-0${1 + Math.floor(k / 50)}-10`, sue: k % 50, periodEnd: '2023-12-31' }));
+        events.push({ symbol: 'X', eventDate: '2024-04-10', sue: 48, periodEnd: '2023-12-31' });
+        const top = topDecile(events);
+        expect(top.every(e => e.eventDate >= '2024-03-10')).toBe(true); // first 100 events have too few peers
+        expect(top.find(e => e.symbol === 'X')!.threshold).toBe(44);
+    });
+});

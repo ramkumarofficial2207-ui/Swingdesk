@@ -47,7 +47,7 @@ export interface SetupCard {
      * next open on each signal day with `exit`. Adds two pass rules: average excess
      * and day-clustered excess vs the control must both be > 0 on the test period.
      */
-    control?: { label: string; include: (ctx: SignalContext) => boolean; exit: ExitPlan };
+    control?: { label: string; include: (ctx: SignalContext) => boolean; exit: ExitPlan; includeOn?: (symbol: string, date: string) => boolean };
     /** Optional cross-sectional pre-pass over all loaded stocks, run once before signals are read. */
     prepare?: (data: StudyData) => void;
 }
@@ -143,14 +143,14 @@ export async function runSetupStudy(card: SetupCard, kind: RegistryEntry['kind']
     const ctxBase = { marketUp: (date: string) => marketUpByDate.get(date), marketAbove200: (date: string) => above200ByDate.get(date), marketTrendUp: (date: string) => marketTrendByDate.get(date) };
 
     const barsBySymbol = new Map<string, PriceBar[]>();
-    const controlSeries: Array<{ bars: PriceBar[]; at: Map<string, number>; eligible: Set<string> }> = [];
+    const controlSeries: Array<{ symbol: string; bars: PriceBar[]; at: Map<string, number>; eligible: Set<string> }> = [];
     let candidates: Candidate[] = [];
     for (const [symbol, eligible] of universe) {
         const loaded = data.series.get(symbol);
         if (!loaded) continue;
         const { bars, ind } = loaded;
         const industry = industries.get(symbol) ?? 'Unknown';
-        if (card.control?.include({ symbol, industry, ...ctxBase })) controlSeries.push({ bars, at: new Map(bars.map((bar, k) => [bar.date, k])), eligible });
+        if (card.control?.include({ symbol, industry, ...ctxBase })) controlSeries.push({ symbol, bars, at: new Map(bars.map((bar, k) => [bar.date, k])), eligible });
         let used = false;
         const extra = card.extras ? await card.extras(symbol, bars) : undefined;
         for (let i = 50; i < bars.length - 1; i += 1) {
@@ -193,6 +193,7 @@ export async function runSetupStudy(card: SetupCard, kind: RegistryEntry['kind']
         for (const date of new Set(trades.map(trade => trade.signalDate))) {
             const values: number[] = [];
             for (const series of controlSeries) {
+                if (card.control.includeOn && !card.control.includeOn(series.symbol, date)) continue;
                 const k = series.at.get(date);
                 if (k === undefined || !series.eligible.has(date) || k + 1 >= series.bars.length) continue;
                 if (exit.maxGapUpPct !== undefined && series.bars[k + 1].open > series.bars[k].close * (1 + exit.maxGapUpPct / 100)) continue;
